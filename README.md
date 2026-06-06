@@ -22,9 +22,10 @@ deno task test:watch
 
 ---
 
-## Prerequisites
+## Requirements
 
-- [Deno](https://deno.land/) v2+
+- [Deno](https://deno.land/) installed on your system.
+- [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno) for VS Code (recommended).
 
 ---
 
