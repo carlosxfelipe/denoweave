@@ -8,6 +8,7 @@
     "test:watch": "deno test --allow-read --watch src/",
     "run": "deno run --allow-read src/mod.ts",
     "cli": "deno run --allow-read src/cli/main.ts",
+    "compile": "deno compile --allow-read --output build/denoweave src/cli/main.ts",
     "check": "deno check src/mod.ts"
   },
   "compilerOptions": {

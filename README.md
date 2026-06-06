@@ -51,6 +51,36 @@ deno task cli --help
 
 ---
 
+## Compilation / Standalone Build
+
+You can compile DenoWeave into a single, self-contained executable binary that runs on target systems without Deno or Node.js installed.
+
+### Build for your current platform:
+```bash
+deno task compile
+```
+This generates the executable binary at `build/denoweave` (or `build/denoweave.exe` on Windows).
+
+### Cross-compiling for other platforms:
+You can build for other target operating systems using the `--target` flag:
+```bash
+# Target Linux (x64)
+deno compile --allow-read --target x86_64-unknown-linux-gnu --output build/denoweave-linux src/cli/main.ts
+
+# Target Windows (x64)
+deno compile --allow-read --target x86_64-pc-windows-msvc --output build/denoweave-win src/cli/main.ts
+
+# Target macOS (Apple Silicon / M1/M2/M3)
+deno compile --allow-read --target aarch64-apple-darwin --output build/denoweave-mac src/cli/main.ts
+```
+
+### Running the binary:
+```bash
+./build/denoweave --script example/example.dwl --input example/order.json
+```
+
+---
+
 ## CLI
 
 ```bash
