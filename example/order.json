@@ -1,0 +1,23 @@
+{
+  "order": {
+    "id": "12345",
+    "customer": "John Doe",
+    "items": [
+      {
+        "name": "Notebook",
+        "qty": 1,
+        "price": 999.99
+      },
+      {
+        "name": "Mouse",
+        "qty": 2,
+        "price": 29.99
+      },
+      {
+        "name": "Keyboard",
+        "qty": 0,
+        "price": 79.99
+      }
+    ]
+  }
+}
