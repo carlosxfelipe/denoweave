@@ -28,6 +28,16 @@ deno task test:watch
 
 ---
 
+## Why Deno?
+
+Built on Deno, this engine benefits from modern runtime security and dependency management:
+
+- **Secure by Default (Sandbox):** No file system, network, or environment access is granted unless explicitly allowed (e.g., via the `--allow-read` flag). This prevents compromised dependencies from accessing sensitive host resources.
+- **Cryptographic Integrity:** All remote dependencies are locked and verified using a lockfile (`deno.lock`). Any unauthorized modification to the source URL or repository will fail the integrity check and block execution.
+- **No Install Scripts:** Unlike Node.js/npm, Deno does not run arbitrary lifecycle scripts (like `postinstall`) upon resolving dependencies, eliminating a major vector for supply chain attacks.
+
+---
+
 ## Development
 
 ```bash
