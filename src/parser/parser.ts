@@ -23,7 +23,8 @@ export class ParseError extends Error {
  *   pipe           → infix ("|>" infix)*
  *   infix          → logical (("map"|"filter"|"reduce") lambda)*
  *   logical        → comparison (("and"|"or") comparison)*
- *   comparison     → additive (compOp additive)*
+ *   comparison     → range (compOp range)*
+ *   range          → additive ("to" additive)*
  *   additive       → multiplicative (("+"|"-") multiplicative)*
  *   multiplicative → unary (("*"|"/") unary)*
  *   unary          → ("not"|"-") unary | postfix
@@ -263,14 +264,25 @@ export class Parser {
     return left;
   }
 
-  /** comparison → additive (compOp additive)* */
+  /** comparison → range (compOp range)* */
   private parseComparison(): AST.Expression {
-    let left = this.parseAdditive();
+    let left = this.parseRange();
     while (
       this.check(TokenType.EQ) || this.check(TokenType.NEQ) ||
       this.check(TokenType.LT) || this.check(TokenType.LTE) ||
       this.check(TokenType.GT) || this.check(TokenType.GTE)
     ) {
+      const op = this.advance();
+      const right = this.parseRange();
+      left = { type: 'BinaryExpression', operator: op.value, left, right };
+    }
+    return left;
+  }
+
+  /** range → additive ("to" additive)* */
+  private parseRange(): AST.Expression {
+    let left = this.parseAdditive();
+    while (this.check(TokenType.TO)) {
       const op = this.advance();
       const right = this.parseAdditive();
       left = { type: 'BinaryExpression', operator: op.value, left, right };
@@ -281,7 +293,7 @@ export class Parser {
   /** additive → multiplicative (("+"|"-") multiplicative)* */
   private parseAdditive(): AST.Expression {
     let left = this.parseMultiplicative();
-    while (this.check(TokenType.PLUS) || this.check(TokenType.MINUS)) {
+    while (this.check(TokenType.PLUS) || this.check(TokenType.PLUS_PLUS) || this.check(TokenType.MINUS)) {
       const op = this.advance();
       const right = this.parseMultiplicative();
       left = { type: 'BinaryExpression', operator: op.value, left, right };

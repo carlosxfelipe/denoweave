@@ -158,7 +158,13 @@ export class Lexer {
         }
         return this.makeToken(TokenType.ILLEGAL, '|', line, col);
       }
-      case '+': return this.makeToken(TokenType.PLUS, '+', line, col);
+      case '+': {
+        if (this.peek() === '+') {
+          this.advance();
+          return this.makeToken(TokenType.PLUS_PLUS, '++', line, col);
+        }
+        return this.makeToken(TokenType.PLUS, '+', line, col);
+      }
       case '*': return this.makeToken(TokenType.STAR, '*', line, col);
       case '/': return this.makeToken(TokenType.SLASH, '/', line, col);
       case ':': return this.makeToken(TokenType.COLON, ':', line, col);

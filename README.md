@@ -27,7 +27,7 @@ Built on Deno, this engine benefits from modern runtime security and dependency 
 
 DenoWeave implements a fully-featured parser and evaluator that supports modern DataWeave 2.x syntax:
 - **Core Types**: Strings, Numbers, Booleans, Null, Arrays, Objects.
-- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default (`default`), casting (`as`).
+- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default (`default`), casting (`as`), array/string/object concatenation (`++`), and range slicing (`to`).
 - **Functions & Lambdas**: Named functions (`fun`), single-param lambdas (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
 - **Variables & Types**: Local variables (`var`), type hints (`type`).
 - **Pattern Matching**: `match` / `case` expressions including literal match, type check (`case is Type`), and named capture with guards (`case q if q > 100`).
@@ -140,20 +140,36 @@ Output:
 
 ## Running a Complete Example
 
-The project includes practical examples organized by use-cases in the `examples/` folder (e.g., `json-to-json/`, `csv-to-xml/`).
+The project includes practical examples organized by use-cases in the `examples/` folder. Here are the main examples you can run:
 
-To run the full JSON-to-JSON example script via the API simulator (`run.ts`), use the following command:
-
+### JSON Transformation (Standalone)
+Load a data file `input.json`, transform it via `transform.dwl`, and print the formatted result:
 ```bash
 deno run --allow-read examples/json-to-json/run.ts
 ```
 
-This script loads the data file `input.json` via the script `transform.dwl` and displays the formatted result in the console.
-
-To run the CSV to XML example via CLI:
-
+### CSV to XML (CLI)
+Transform CSV to XML directly via the CLI:
 ```bash
 deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
+```
+
+### HTTP Server (API Transformation)
+Run a Deno web server that accepts POST requests and transforms the incoming JSON payload in real-time:
+```bash
+deno run --allow-net --allow-read examples/http-server/server.ts
+```
+
+### Connectors / ETL Flow
+Simulates a classic MuleSoft "Connector" flow by fetching real data from an external HTTP API and transforming it:
+```bash
+deno run --allow-net --allow-read examples/connectors/flow.ts
+```
+
+### Docs-as-Code Pipeline
+Demonstrates a fluent, programmable API (like Apache Camel) to orchestrate data extraction, transformation, and loading (`from`, `transform`, `to`):
+```bash
+deno run --allow-net --allow-read examples/pipeline/run.ts
 ```
 
 ---

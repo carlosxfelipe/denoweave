@@ -47,10 +47,23 @@ class Evaluator {
         const idx = this.eval(node.index, env);
 
         if (Array.isArray(obj)) {
+          if (Array.isArray(idx)) {
+            return idx.map((i) => (obj as Value[])[Number(i)] ?? null);
+          }
           if (typeof idx !== 'number') {
-            throw new RuntimeError(`Array index must be a number, got ${typeof idx}`);
+            throw new RuntimeError(`Array index must be a number or array, got ${typeof idx}`);
           }
           return (obj as Value[])[idx] ?? null;
+        }
+
+        if (typeof obj === 'string') {
+          if (Array.isArray(idx)) {
+            return idx.map((i) => obj[Number(i)] ?? "").join("");
+          }
+          if (typeof idx === 'number') {
+            return obj[idx] ?? null;
+          }
+          throw new RuntimeError(`String index must be a number or array`);
         }
 
         if (obj && typeof obj === 'object') {
@@ -208,7 +221,7 @@ class Evaluator {
 
       case 'IfExpression': {
         const cond = this.eval(node.condition, env);
-        return Boolean(cond)
+        return cond
           ? this.eval(node.consequent, env)
           : this.eval(node.alternate, env);
       }
@@ -325,7 +338,7 @@ class Evaluator {
           if (matched) {
             if (arm.guard) {
               const guardEnv = env.extend(captureBindings);
-              if (!Boolean(this.eval(arm.guard, guardEnv))) continue;
+              if (!this.eval(arm.guard, guardEnv)) continue;
             }
             return this.eval(arm.body, env.extend(captureBindings));
           }
@@ -382,6 +395,17 @@ class Evaluator {
           return String(left) + String(right);
         }
         return (left as number) + (right as number);
+      case '++':
+        if (Array.isArray(left)) {
+          return [...left, ...(Array.isArray(right) ? right : [right])];
+        }
+        if (left !== null && typeof left === 'object') {
+          if (right !== null && typeof right === 'object') {
+            return { ...(left as DWObject), ...(right as DWObject) };
+          }
+          throw new RuntimeError(`Cannot concatenate object with ${typeof right}`);
+        }
+        return String(left) + String(right);
       case '-': return (left as number) - (right as number);
       case '*': return (left as number) * (right as number);
       case '/': {
@@ -398,6 +422,23 @@ class Evaluator {
       case '<=': return (left as number) <= (right as number);
       case '>':  return (left as number) > (right as number);
       case '>=': return (left as number) >= (right as number);
+      
+      // Range operator
+      case 'to': {
+        const start = Number(left);
+        const end = Number(right);
+        if (isNaN(start) || isNaN(end)) {
+          throw new RuntimeError('"to" operator requires two numbers');
+        }
+        const step = start <= end ? 1 : -1;
+        const result: number[] = [];
+        if (start <= end) {
+          for (let i = start; i <= end; i += step) result.push(i);
+        } else {
+          for (let i = start; i >= end; i += step) result.push(i);
+        }
+        return result;
+      }
 
       // Logical (short-circuit NOT implemented at AST level, so both sides
       // are already evaluated — acceptable trade-off for Phase 3)

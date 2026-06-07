@@ -10,6 +10,6 @@ payload map (user) -> {
     fullName: user.name,
     // Lowercase the email for standardization
     contactEmail: lower(user.email default ""),
-    // Extract the city only to avoid concatenation
-    city: user.address.city default "Unknown"
+    // Concatenate city and zip code
+    cityAndZip: (user.address.city default "Unknown") ++ " - " ++ (user.address.zipcode default "")
 }

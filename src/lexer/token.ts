@@ -32,6 +32,7 @@ export enum TokenType {
   MATCH = 'MATCH',
   CASE = 'CASE',
   IS = 'IS',
+  TO = 'TO',
 
   // ── Operators ─────────────────────────────────────────────
   DOT = 'DOT',             // .
@@ -47,6 +48,7 @@ export enum TokenType {
 
   // ── Arithmetic ────────────────────────────────────────────
   PLUS = 'PLUS',           // +
+  PLUS_PLUS = 'PLUS_PLUS', // ++
   MINUS = 'MINUS',         // -
   STAR = 'STAR',           // *
   SLASH = 'SLASH',         // /
@@ -98,6 +100,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   match: TokenType.MATCH,
   case: TokenType.CASE,
   is: TokenType.IS,
+  to: TokenType.TO,
   "$": TokenType.DOLLAR,
   "$$": TokenType.DOUBLE_DOLLAR,
   true: TokenType.BOOLEAN,
