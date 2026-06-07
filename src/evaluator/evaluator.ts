@@ -266,6 +266,74 @@ class Evaluator {
 
       case 'AnonymousArgExpression':
         return env.get(node.name);
+
+      // ───────────────────────────────────────────────────────────────────────
+      // do block
+      // ───────────────────────────────────────────────────────────────────────
+
+      case 'DoExpression': {
+        // Create a child scope for the block's local declarations
+        const doEnv = env.extend({});
+        for (const decl of node.declarations) {
+          if (decl.type === 'VariableDeclaration') {
+            const val = this.eval(decl.value, doEnv);
+            doEnv.set(decl.name, val);
+          } else if (decl.type === 'FunctionDeclaration') {
+            const fn: DWFunction = (...args: Value[]): Value => {
+              const bindings: Record<string, Value> = {};
+              decl.params.forEach((p, i) => { bindings[p.name] = args[i] ?? null; });
+              return this.eval(decl.body, doEnv.extend(bindings));
+            };
+            doEnv.set(decl.name, fn);
+          }
+        }
+        return this.eval(node.body, doEnv);
+      }
+
+      // ───────────────────────────────────────────────────────────────────────
+      // match / case
+      // ───────────────────────────────────────────────────────────────────────
+
+      case 'MatchExpression': {
+        const subject = this.eval(node.subject, env);
+
+        for (const arm of node.cases) {
+          let matched = false;
+          // For capture patterns, the binding is always available in guard + body
+          const captureBindings: Record<string, Value> =
+            arm.pattern.kind === 'capture'
+              ? { '$': subject, [arm.pattern.name]: subject }
+              : { '$': subject };
+
+          if (arm.pattern.kind === 'literal') {
+            const patternVal = this.eval(arm.pattern.value, env);
+            matched = subject === patternVal;
+          } else if (arm.pattern.kind === 'capture') {
+            matched = true; // capture always matches; guard narrows
+          } else if (arm.pattern.kind === 'type') {
+            switch (arm.pattern.typeName) {
+              case 'String':  matched = typeof subject === 'string'; break;
+              case 'Number':  matched = typeof subject === 'number'; break;
+              case 'Boolean': matched = typeof subject === 'boolean'; break;
+              case 'Array':   matched = Array.isArray(subject); break;
+              case 'Object':  matched = subject !== null && typeof subject === 'object' && !Array.isArray(subject); break;
+              case 'Null':    matched = subject === null; break;
+              default:        matched = false;
+            }
+          }
+
+          if (matched) {
+            if (arm.guard) {
+              const guardEnv = env.extend(captureBindings);
+              if (!Boolean(this.eval(arm.guard, guardEnv))) continue;
+            }
+            return this.eval(arm.body, env.extend(captureBindings));
+          }
+        }
+
+        // No case matched — evaluate else body
+        return this.eval(node.elseBody, env.extend({ '$': subject }));
+      }
     }
   }
 

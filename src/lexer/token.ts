@@ -28,6 +28,10 @@ export enum TokenType {
   VAR = 'VAR',
   FUN = 'FUN',
   TYPE = 'TYPE',
+  DO = 'DO',
+  MATCH = 'MATCH',
+  CASE = 'CASE',
+  IS = 'IS',
 
   // ── Operators ─────────────────────────────────────────────
   DOT = 'DOT',             // .
@@ -90,6 +94,10 @@ export const KEYWORDS: Record<string, TokenType> = {
   var: TokenType.VAR,
   fun: TokenType.FUN,
   type: TokenType.TYPE,
+  do: TokenType.DO,
+  match: TokenType.MATCH,
+  case: TokenType.CASE,
+  is: TokenType.IS,
   "$": TokenType.DOLLAR,
   "$$": TokenType.DOUBLE_DOLLAR,
   true: TokenType.BOOLEAN,

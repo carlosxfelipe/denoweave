@@ -106,18 +106,36 @@ deno task cli --script script.dwl --input data.json
 ## DSL Example
 
 ```dw
-payload.users map ((u) -> {
-  name: upper(u.name),
-  active: u.enabled
-})
+%dw 2.0
+output application/json
+
+fun stockStatus(qty: Number) = qty match {
+    case 0                       -> "OUT_OF_STOCK"
+    case is Number if ($ > 100) -> "BULK"
+    case is Number if ($ > 0)   -> "AVAILABLE"
+    else                        -> "UNKNOWN"
+}
+
+---
+payload.items map (item, index) -> do {
+    var total = item.qty * item.price * 1.10
+    ---
+    {
+        position: index + 1,
+        product: item.name,
+        status: stockStatus(item.qty),
+        totalWithTax: round(total * 100) / 100
+    }
+}
 ```
 
 Output:
 
 ```json
 [
-  { "name": "JOHN", "active": true },
-  { "name": "JANE", "active": false }
+  { "position": 1, "product": "Notebook", "status": "AVAILABLE", "totalWithTax": 1099.99 },
+  { "position": 2, "product": "Mouse",    "status": "AVAILABLE", "totalWithTax": 65.98 },
+  { "position": 3, "product": "Keyboard", "status": "OUT_OF_STOCK", "totalWithTax": 0 }
 ]
 ```
 

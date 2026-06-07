@@ -1,58 +1,54 @@
 %dw 2.0
 output application/json
+// Note: In a real Mule flow, inputs are implicit and their types are defined
+// by the connector/component metadata. We explicitly declare it here for
+// standalone execution and linter support.
 input payload application/json
 
-// Item type definition
-type Item = {
-    name: String,
-    qty: Number,
-    price: Number
-}
+// Type hints (documentation only — not validated at runtime by Mule 4)
+type Item = { name: String, qty: Number, price: Number }
+type OrderPayload = { order: { id: String, customer: String, items: Array<Item> } }
 
-// Payload type definition
-type OrderPayload = {
-    order: {
-            id: String,
-            customer: String,
-            items: Array<Item>
-        }
-}
-
-// Variables — in a real Mule flow these would come from the flow vars
 var taxRate = 0.10
 var currency = "USD"
 
-// Calculate item total including tax
 fun calculateTotal(quantity: Number, unitPrice: Number): Number =
     (quantity * unitPrice) * (1 + taxRate)
 
-// Create a structured currency object
 fun formatCurrency(value: Number) = {
-        value: round(value * 100) / 100,
-        currency: currency
-    }
+    value: round(value * 100) / 100,
+    currency: currency
+}
+
+fun stockStatus(qty: Number) = qty match {
+    case 0            -> "OUT_OF_STOCK"
+    case q if q > 100 -> "BULK"
+    case q if q > 0   -> "AVAILABLE"
+    else              -> "UNKNOWN"
+}
 
 ---
 {
     order: {
-            id: payload.order.id default "NO-ID",
-            customer: upper(payload.order.customer default "UNKNOWN"),
-            date: now() as String { format: "yyyy-MM-dd HH:mm:ss" },
-
-            items: (payload.order.items default []) map (item, index) -> {
-                                position: index + 1,
-                                product: item.name,
-                                quantity: item.qty,
-                                unitPrice: formatCurrency(item.price),
-                                totalWithTax: formatCurrency(calculateTotal(item.qty, item.price))
-                            },
-
-            validItems: sizeOf((payload.order.items default []) filter ($.qty > 0)),
-
-            grandTotal: formatCurrency(
-                    (payload.order.items default [])
-                        reduce ((item, accumulator = 0) ->
-                                accumulator + calculateTotal(item.qty, item.price))
+        id: payload.order.id default "NO-ID",
+        customer: upper(payload.order.customer default "UNKNOWN"),
+        date: now() as String { format: "yyyy-MM-dd HH:mm:ss" },
+        items: (payload.order.items default []) map (item, index) -> do {
+            var total = calculateTotal(item.qty, item.price)
+            ---
+            {
+                position: index + 1,
+                product: item.name,
+                quantity: item.qty,
+                status: stockStatus(item.qty),
+                unitPrice: formatCurrency(item.price),
+                totalWithTax: formatCurrency(total)
+            }
+        },
+        validItems: sizeOf((payload.order.items default []) filter ($.qty > 0)),
+        grandTotal: formatCurrency(
+            (payload.order.items default [])
+                reduce ((item, acc = 0) -> acc + calculateTotal(item.qty, item.price))
         )
-        }
+    }
 }

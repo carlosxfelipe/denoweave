@@ -30,6 +30,8 @@ export type NodeType =
   | 'TypeDeclaration'
   | 'DefaultExpression'
   | 'AsExpression'
+  | 'DoExpression'
+  | 'MatchExpression'
   | 'AnonymousArgExpression';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
@@ -202,6 +204,49 @@ export interface AnonymousArgExpression extends BaseNode {
   name: '$' | '$$';
 }
 
+// ── do block ────────────────────────────────────────────────────────────────
+
+/**
+ * `do { var x = expr --- body }` — local scope block.
+ * Creates a child environment with its own declarations, then evaluates body.
+ */
+export interface DoExpression extends BaseNode {
+  type: 'DoExpression';
+  declarations: Declaration[];
+  body: Expression;
+}
+
+// ── match / case ─────────────────────────────────────────────────────────────
+
+/** Pattern inside a `case` clause */
+export type MatchPattern =
+  | { kind: 'literal';  value: Expression }
+  | { kind: 'type';     typeName: string }
+  | { kind: 'capture';  name: string }       // `case q if q > 0` — binds the value to `q`
+  | { kind: 'else' };
+
+/** A single `case pattern (if guard)? -> body` arm */
+export interface MatchCase {
+  pattern: MatchPattern;
+  /** Optional guard expression — evaluated with `$` bound to the subject */
+  guard?: Expression;
+  body: Expression;
+}
+
+/**
+ * `subject match { case ... else -> expr }`
+ *
+ * DataWeave pattern matching. Cases are tested in order;
+ * the first matching arm wins. An `else` arm is required.
+ */
+export interface MatchExpression extends BaseNode {
+  type: 'MatchExpression';
+  subject: Expression;
+  cases: MatchCase[];
+  /** Body for the `else` catch-all arm */
+  elseBody: Expression;
+}
+
 // ── Header Declarations ──────────────────────────────────────────────────────
 
 export interface VariableDeclaration extends BaseNode {
@@ -255,6 +300,8 @@ export type Expression =
   | PipeExpression
   | DefaultExpression
   | AsExpression
-  | AnonymousArgExpression;
+  | AnonymousArgExpression
+  | DoExpression
+  | MatchExpression;
 
 export type AnyNode = Program | Expression | Declaration | Property;

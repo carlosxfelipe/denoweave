@@ -49,7 +49,14 @@ export class Parser {
 
   /** Parse the full program and return the root AST node. */
   parse(): AST.Program {
-    const hasHeader = this.tokens.some((t) => t.type === TokenType.HEADER_SEPARATOR);
+    // Only treat `---` as a header separator if it appears at brace-depth 0.
+    // This prevents `do { var x = 1 --- x }` from being misidentified as a header.
+    let _depth = 0;
+    const hasHeader = this.tokens.some((t) => {
+      if (t.type === TokenType.LBRACE) { _depth++; return false; }
+      if (t.type === TokenType.RBRACE) { _depth--; return false; }
+      return t.type === TokenType.HEADER_SEPARATOR && _depth === 0;
+    });
     const declarations: AST.Declaration[] = [];
 
     if (hasHeader) {
@@ -344,6 +351,9 @@ export class Parser {
           properties = this.parseObjectExpression();
         }
         expr = { type: 'AsExpression', expression: expr, targetType, properties, line: start.line, column: start.column };
+      } else if (this.check(TokenType.MATCH)) {
+        const mTok = this.advance(); // consume `match`
+        expr = this.parseMatchExpression(expr, mTok.line, mTok.column);
       } else {
         break;
       }
@@ -423,6 +433,11 @@ export class Parser {
     // If expression
     if (tok.type === TokenType.IF) {
       return this.parseIfExpression();
+    }
+
+    // Do block: do { var ... --- body }
+    if (tok.type === TokenType.DO) {
+      return this.parseDoExpression();
     }
 
     throw new ParseError(`Unexpected token "${tok.value}" (${tok.type})`, tok);
@@ -589,6 +604,110 @@ export class Parser {
     return this.parseExpression();
   }
 
+  // ── do block ────────────────────────────────────────────────────────────────
+
+  /**
+   * Parse `do { declarations* --- body }`.
+   * Creates a local scope with its own var/fun declarations.
+   */
+  private parseDoExpression(): AST.DoExpression {
+    const start = this.expect(TokenType.DO);
+    this.expect(TokenType.LBRACE);
+    const declarations: AST.Declaration[] = [];
+    while (
+      !this.check(TokenType.HEADER_SEPARATOR) &&
+      !this.check(TokenType.RBRACE) &&
+      !this.check(TokenType.EOF)
+    ) {
+      if (this.check(TokenType.VAR)) {
+        declarations.push(this.parseVarDeclaration());
+      } else if (this.check(TokenType.FUN)) {
+        declarations.push(this.parseFunDeclaration());
+      } else {
+        break; // unexpected token — will fail on expect(HEADER_SEPARATOR) below
+      }
+    }
+    this.expect(TokenType.HEADER_SEPARATOR); // consume ---
+    const body = this.parseExpression();
+    this.expect(TokenType.RBRACE);
+    return { type: 'DoExpression', declarations, body, line: start.line, column: start.column };
+  }
+
+  // ── match / case ──────────────────────────────────────────────────────────
+
+  /**
+   * Parse `match { case pattern (if guard)? -> body ... else -> body }`.
+   * The subject has already been parsed; `match` token already consumed.
+   *
+   * Supported patterns:
+   *   case <literal>                -> expr   (value equality)
+   *   case is <TypeName>            -> expr   (type check)
+   *   case is <TypeName> if (...)   -> expr   (type check + guard; $ = subject)
+   *   else                          -> expr   (required catch-all)
+   */
+  private parseMatchExpression(subject: AST.Expression, line?: number, column?: number): AST.MatchExpression {
+    this.expect(TokenType.LBRACE);
+    const cases: AST.MatchCase[] = [];
+    let elseBody: AST.Expression | null = null;
+
+    while (!this.check(TokenType.RBRACE) && !this.check(TokenType.EOF)) {
+      if (this.check(TokenType.ELSE)) {
+        this.advance(); // else
+        this.expect(TokenType.ARROW);
+        elseBody = this.parseExpression();
+      } else if (this.check(TokenType.CASE)) {
+        this.advance(); // case
+
+        let pattern: AST.MatchPattern;
+
+        if (this.check(TokenType.IS)) {
+          // `case is TypeName (if guard)?` — type check
+          this.advance(); // is
+          const typeName = this.expect(TokenType.IDENT).value;
+          pattern = { kind: 'type', typeName };
+        } else if (this.check(TokenType.IDENT) && this.peekAhead(1)?.type === TokenType.IF) {
+          // `case q if condition` — named capture (binds value to `q` in guard + body)
+          const name = this.advance().value;
+          pattern = { kind: 'capture', name };
+        } else if (this.check(TokenType.IDENT) && this.peekAhead(1)?.type === TokenType.ARROW) {
+          // `case q ->` — named capture with no guard (always matches)
+          const name = this.advance().value;
+          pattern = { kind: 'capture', name };
+        } else {
+          // `case <literal>` — value equality match
+          const value = this.parseAdditive();
+          pattern = { kind: 'literal', value };
+        }
+
+        // Optional guard: `if (expr)` or `if expr` — name or $ refers to the matched value
+        let guard: AST.Expression | undefined;
+        if (this.check(TokenType.IF)) {
+          this.advance(); // if
+          const hasParen = this.check(TokenType.LPAREN);
+          if (hasParen) this.advance();
+          guard = this.parseExpression();
+          if (hasParen) this.expect(TokenType.RPAREN);
+        }
+
+        this.expect(TokenType.ARROW);
+        const body = this.parseExpression();
+        cases.push({ pattern, guard, body });
+      } else {
+        this.advance(); // skip unexpected token
+      }
+
+      if (this.check(TokenType.COMMA)) this.advance();
+    }
+
+    this.expect(TokenType.RBRACE);
+
+    if (elseBody === null) {
+      throw new ParseError('match expression requires an `else` clause', this.peek());
+    }
+
+    return { type: 'MatchExpression', subject, cases, elseBody, line, column };
+  }
+
   // ── Utilities ─────────────────────────────────────────────────────────────
 
   /** Parse a comma-separated list of expressions until `stopToken`. */
@@ -603,6 +722,11 @@ export class Parser {
 
   private peek(): Token {
     return this.tokens[this.pos] ?? this.tokens[this.tokens.length - 1];
+  }
+
+  /** Look ahead by `offset` positions without consuming tokens. */
+  private peekAhead(offset: number): Token | undefined {
+    return this.tokens[this.pos + offset];
   }
 
   private advance(): Token {
