@@ -19,6 +19,7 @@
   "fmt": { "indentWidth": 2, "singleQuote": true },
   "lint": { "rules": { "tags": ["recommended"] } },
   "imports": {
+    "@denoweave/": "./src/",
     "@std/assert": "jsr:@std/assert@^1.0.0",
     "@std/yaml": "jsr:@std/yaml@^1.0.0"
   }

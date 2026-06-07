@@ -40,7 +40,7 @@ DenoWeave implements a fully-featured parser and evaluator that supports modern 
 
 ```bash
 # Run any .dwl file
-deno task cli --script example/example.dwl --input example/order.json
+deno task cli --script example/json-to-json/transform.dwl --input example/json-to-json/input.json
 
 # CLI
 deno task cli --help
@@ -73,7 +73,7 @@ deno compile --allow-read --target aarch64-apple-darwin --output build/denoweave
 
 ### Running the binary:
 ```bash
-./build/denoweave --script example/example.dwl --input example/order.json
+./build/denoweave --script example/json-to-json/transform.dwl --input example/json-to-json/input.json
 ```
 
 ---
@@ -140,15 +140,21 @@ Output:
 
 ## Running a Complete Example
 
-The project includes a practical, complete example that demonstrates a more complex transformation using variables, custom functions, external file reading, and standard library functions.
+The project includes practical examples organized by use-cases in the `example/` folder (e.g., `json-to-json/`, `csv-to-xml/`).
 
-To run the example script located at `example/run.ts`, use the following command:
+To run the full JSON-to-JSON example script via the API simulator (`run.ts`), use the following command:
 
 ```bash
-deno run --allow-read example/run.ts
+deno run --allow-read example/json-to-json/run.ts
 ```
 
-This script loads the data file `example/order.json` via the script `example/example.dwl` and displays the formatted result in the console.
+This script loads the data file `input.json` via the script `transform.dwl` and displays the formatted result in the console.
+
+To run the CSV to XML example via CLI:
+
+```bash
+deno task cli --script example/csv-to-xml/transform.dwl --input example/csv-to-xml/input.csv --out xml
+```
 
 ---
 

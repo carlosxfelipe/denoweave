@@ -1,9 +1,9 @@
-import { evaluate } from "../src/evaluator/evaluator.ts";
+import { evaluate } from "@denoweave/evaluator/evaluator.ts";
 
 try {
   // Resolve paths relative to this file
-  const scriptPath = new URL("./example.dwl", import.meta.url);
-  const payloadPath = new URL("./order.json", import.meta.url);
+  const scriptPath = new URL("./transform.dwl", import.meta.url);
+  const payloadPath = new URL("./input.json", import.meta.url);
 
   const script = Deno.readTextFileSync(scriptPath);
 
