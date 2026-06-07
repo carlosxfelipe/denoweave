@@ -4,23 +4,7 @@
 
 ---
 
-## Tests
 
-The project includes a suite of 219 automated tests to ensure the correct behavior of all components in the transformation engine.
-
-To run the tests:
-
-```bash
-deno task test
-```
-
-To run the tests in watch mode:
-
-```bash
-deno task test:watch
-```
-
----
 
 ## Requirements
 
@@ -36,6 +20,19 @@ Built on Deno, this engine benefits from modern runtime security and dependency 
 - **Secure by Default (Sandbox):** No file system, network, or environment access is granted unless explicitly allowed (e.g., via the `--allow-read` flag). This prevents compromised dependencies from accessing sensitive host resources.
 - **Cryptographic Integrity:** All remote dependencies are locked and verified using a lockfile (`deno.lock`). Any unauthorized modification to the source URL or repository will fail the integrity check and block execution.
 - **No Install Scripts:** Unlike Node.js/npm, Deno does not run arbitrary lifecycle scripts (like `postinstall`) upon resolving dependencies, eliminating a major vector for supply chain attacks.
+
+---
+
+## Supported Features
+
+DenoWeave implements a fully-featured parser and evaluator that supports modern DataWeave 2.x syntax:
+- **Core Types**: Strings, Numbers, Booleans, Null, Arrays, Objects.
+- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default (`default`), casting (`as`).
+- **Functions & Lambdas**: Named functions (`fun`), single-param lambdas (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
+- **Variables & Types**: Local variables (`var`), type hints (`type`).
+- **Pattern Matching**: `match` / `case` expressions including literal match, type check (`case is Type`), and named capture with guards (`case q if q > 100`).
+- **Scoping**: Local scope evaluation via `do { ... }` blocks.
+- **Control Flow**: `if / else` expressions.
 
 ---
 
@@ -110,10 +107,10 @@ deno task cli --script script.dwl --input data.json
 output application/json
 
 fun stockStatus(qty: Number) = qty match {
-    case 0                       -> "OUT_OF_STOCK"
-    case is Number if ($ > 100) -> "BULK"
-    case is Number if ($ > 0)   -> "AVAILABLE"
-    else                        -> "UNKNOWN"
+    case 0            -> "OUT_OF_STOCK"
+    case q if q > 100 -> "BULK"
+    case q if q > 0   -> "AVAILABLE"
+    else              -> "UNKNOWN"
 }
 
 ---
@@ -164,6 +161,24 @@ This script loads the data file `example/order.json` via the script `example/exa
 | **Object** | `keys`, `values`, `entries`, `merge`, `deepMerge`, `mapObject`, `filterObject`, `pick`, `omit`, `has` |
 | **Math** | `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `log`, `mod` |
 | **Type** | `typeOf`, `isNull`, `isEmpty`, `length` |
+
+---
+
+## Tests
+
+The project includes a suite of 219 automated tests to ensure the correct behavior of all components in the transformation engine.
+
+To run the tests:
+
+```bash
+deno task test
+```
+
+To run the tests in watch mode:
+
+```bash
+deno task test:watch
+```
 
 ---
 
