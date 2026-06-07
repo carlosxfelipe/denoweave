@@ -226,6 +226,7 @@ Since this is an educational and experimental project, its architecture differs 
 
 - **Memory and Streaming:** The official JVM DataWeave engine relies heavily on reactive streams, which allows it to process massive files (e.g., multi-gigabyte CSVs) with a very small memory footprint. DenoWeave, by contrast, loads the entire payload into memory to build its Abstract Syntax Tree (AST). This means DenoWeave will hit V8 memory limits if you attempt to process extremely large datasets.
 - **Startup Time (Cold Starts):** Because DenoWeave runs on the V8 JavaScript engine rather than the JVM, it bypasses the typical Java "cold start" delay. This makes it an interesting experiment for lightweight, serverless environments (like AWS Lambda or Deno Deploy) where scripts need to start and execute instantly, provided the payloads remain reasonably small.
+- **Future Evolution (Streaming & Wasm):** If someone were to fork or evolve this project to handle multi-gigabyte files, the modern Deno ecosystem provides excellent native paths. The data adapters and evaluator could be refactored to use the Web Streams API and Async Iterators to process data chunk-by-chunk with a near-zero memory footprint. Alternatively, the core evaluation engine could be rewritten in Rust and compiled to WebAssembly (Wasm) to run inside Deno at near-native speeds.
 
 ---
 
