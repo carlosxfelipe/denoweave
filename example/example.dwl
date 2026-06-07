@@ -2,16 +2,19 @@
 output application/json
 input payload application/json
 
+// Item type definition
+type Item = {
+    name: String,
+    qty: Number,
+    price: Number
+}
+
 // Payload type definition
 type OrderPayload = {
     order: {
             id: String,
             customer: String,
-            items: Array<{
-                        name: String,
-                        qty: Number,
-                        price: Number
-                    }>
+            items: Array<Item>
         }
 }
 
