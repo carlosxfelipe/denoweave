@@ -56,9 +56,28 @@ export class Parser {
       while (!this.check(TokenType.HEADER_SEPARATOR) && !this.check(TokenType.EOF)) {
         const tok = this.peek();
         if (tok.type === TokenType.PERCENT) {
-          this.advance();
-          this.expect(TokenType.IDENT); // dw
-          this.advance(); // 2.0
+          this.advance(); // consume %
+          const directive = this.expect(TokenType.IDENT); // dw | input | output | ns | ...
+          if (directive.value === 'dw') {
+            // %dw 2.0 — consume version token
+            this.advance();
+          } else {
+            // %input, %output, %ns, %function, etc.
+            // Consume all tokens until the next header-level keyword or separator
+            while (
+              !this.check(TokenType.EOF) &&
+              !this.check(TokenType.HEADER_SEPARATOR) &&
+              !this.check(TokenType.PERCENT) &&
+              !this.check(TokenType.VAR) &&
+              !this.check(TokenType.FUN) &&
+              !this.check(TokenType.TYPE)
+            ) {
+              // Stop if we hit a standalone 'output' identifier at line start
+              const cur = this.peek();
+              if (cur.type === TokenType.IDENT && cur.value === 'output') break;
+              this.advance();
+            }
+          }
         } else if (tok.type === TokenType.IDENT && tok.value === 'output') {
           this.advance();
           this.expect(TokenType.IDENT); // application
@@ -70,6 +89,22 @@ export class Parser {
           declarations.push(this.parseFunDeclaration());
         } else if (tok.type === TokenType.TYPE) {
           declarations.push(this.parseTypeDeclaration());
+        } else if (tok.type === TokenType.IDENT && tok.value === 'input') {
+          // bare `input payload application/json` — DW 2.0 standalone syntax
+          // Consume the full directive: input <name> <mime-type>
+          this.advance(); // input
+          while (
+            !this.check(TokenType.EOF) &&
+            !this.check(TokenType.HEADER_SEPARATOR) &&
+            !this.check(TokenType.PERCENT) &&
+            !this.check(TokenType.VAR) &&
+            !this.check(TokenType.FUN) &&
+            !this.check(TokenType.TYPE)
+          ) {
+            const cur = this.peek();
+            if (cur.type === TokenType.IDENT && (cur.value === 'output' || cur.value === 'input')) break;
+            this.advance();
+          }
         } else {
           this.advance();
         }

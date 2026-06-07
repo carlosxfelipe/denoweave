@@ -1,12 +1,32 @@
 import { evaluate } from "../src/evaluator/evaluator.ts";
 
 try {
-  // Resolve the path to the example.dwl script relative to this execution file
+  // Resolve paths relative to this file
   const scriptPath = new URL("./example.dwl", import.meta.url);
+  const payloadPath = new URL("./order.json", import.meta.url);
+
   const script = Deno.readTextFileSync(scriptPath);
 
-  // Execute using our engine
-  const result = evaluate(script);
+  // Simulate the Mule runtime context:
+  // - payload  → the incoming message body (parsed from JSON)
+  // - attributes → HTTP metadata (method, headers, query params, etc.)
+  // - vars      → Mule flow variables (empty in this standalone example)
+  const payload = JSON.parse(Deno.readTextFileSync(payloadPath));
+
+  const attributes = {
+    method: "POST",
+    requestPath: "/orders",
+    headers: {
+      "content-type": "application/json",
+      "accept": "application/json",
+    },
+    queryParams: {},
+  };
+
+  const vars = {};
+
+  // Execute using our engine — payload is injected, never declared in the .dwl
+  const result = evaluate(script, { payload, attributes, vars });
 
   // Display the formatted result
   console.log(JSON.stringify(result, null, 2));
