@@ -42,7 +42,10 @@ export class Environment {
   private readonly store: Map<string, Value>;
   private readonly parent: Environment | null;
 
-  constructor(parent: Environment | null = null, bindings: Record<string, Value> = {}) {
+  constructor(
+    parent: Environment | null = null,
+    bindings: Record<string, Value> = {},
+  ) {
     this.parent = parent;
     this.store = new Map(Object.entries(bindings));
   }

@@ -35,45 +35,45 @@ export enum TokenType {
   TO = 'TO',
 
   // ── Operators ─────────────────────────────────────────────
-  DOT = 'DOT',             // .
-  DOTDOT = 'DOTDOT',       // ..  (descendant selector)
-  ARROW = 'ARROW',         // ->
+  DOT = 'DOT', // .
+  DOTDOT = 'DOTDOT', // ..  (descendant selector)
+  ARROW = 'ARROW', // ->
   FAT_ARROW = 'FAT_ARROW', // =>
-  COLON = 'COLON',         // :
-  COMMA = 'COMMA',         // ,
+  COLON = 'COLON', // :
+  COMMA = 'COMMA', // ,
   SEMICOLON = 'SEMICOLON', // ;
-  PIPE = 'PIPE',           // |>
-  PERCENT = 'PERCENT',     // %
+  PIPE = 'PIPE', // |>
+  PERCENT = 'PERCENT', // %
   HEADER_SEPARATOR = 'HEADER_SEPARATOR', // ---
 
   // ── Arithmetic ────────────────────────────────────────────
-  PLUS = 'PLUS',           // +
+  PLUS = 'PLUS', // +
   PLUS_PLUS = 'PLUS_PLUS', // ++
-  MINUS = 'MINUS',         // -
-  STAR = 'STAR',           // *
-  SLASH = 'SLASH',         // /
+  MINUS = 'MINUS', // -
+  STAR = 'STAR', // *
+  SLASH = 'SLASH', // /
 
   // ── Comparison ────────────────────────────────────────────
-  EQ = 'EQ',               // ==
-  NEQ = 'NEQ',             // !=
-  LT = 'LT',               // <
-  LTE = 'LTE',             // <=
-  GT = 'GT',               // >
-  GTE = 'GTE',             // >=
+  EQ = 'EQ', // ==
+  NEQ = 'NEQ', // !=
+  LT = 'LT', // <
+  LTE = 'LTE', // <=
+  GT = 'GT', // >
+  GTE = 'GTE', // >=
 
   // ── Assignment ────────────────────────────────────────────
-  ASSIGN = 'ASSIGN',       // =
+  ASSIGN = 'ASSIGN', // =
 
   // ── Grouping / Structure ──────────────────────────────────
-  LPAREN = 'LPAREN',       // (
-  RPAREN = 'RPAREN',       // )
-  LBRACE = 'LBRACE',       // {
-  RBRACE = 'RBRACE',       // }
-  LBRACKET = 'LBRACKET',   // [
-  RBRACKET = 'RBRACKET',   // ]
+  LPAREN = 'LPAREN', // (
+  RPAREN = 'RPAREN', // )
+  LBRACE = 'LBRACE', // {
+  RBRACE = 'RBRACE', // }
+  LBRACKET = 'LBRACKET', // [
+  RBRACKET = 'RBRACKET', // ]
 
   // ── Special ───────────────────────────────────────────────
-  DOLLAR = 'DOLLAR',       // $
+  DOLLAR = 'DOLLAR', // $
   DOUBLE_DOLLAR = 'DOUBLE_DOLLAR', // $$
   EOF = 'EOF',
   ILLEGAL = 'ILLEGAL',
@@ -101,8 +101,8 @@ export const KEYWORDS: Record<string, TokenType> = {
   case: TokenType.CASE,
   is: TokenType.IS,
   to: TokenType.TO,
-  "$": TokenType.DOLLAR,
-  "$$": TokenType.DOUBLE_DOLLAR,
+  '$': TokenType.DOLLAR,
+  '$$': TokenType.DOUBLE_DOLLAR,
   true: TokenType.BOOLEAN,
   false: TokenType.BOOLEAN,
   null: TokenType.NULL,

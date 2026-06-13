@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from '@std/assert';
-import { Parser, ParseError } from './parser.ts';
-import type { Program, Expression } from '../ast/nodes.ts';
+import { ParseError, Parser } from './parser.ts';
+import type { Expression, Program } from '../ast/nodes.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -215,7 +215,9 @@ Deno.test('Parser: arithmetic — a + b * c (precedence)', () => {
   if (node.type === 'BinaryExpression') {
     assertEquals(node.operator, '+');
     assertEquals(node.right.type, 'BinaryExpression');
-    if (node.right.type === 'BinaryExpression') assertEquals(node.right.operator, '*');
+    if (node.right.type === 'BinaryExpression') {
+      assertEquals(node.right.operator, '*');
+    }
   }
 });
 
@@ -285,16 +287,19 @@ Deno.test('Parser: filter expression — users filter ((u) -> u.active)', () => 
   }
 });
 
-Deno.test('Parser: reduce expression — nums reduce ((acc, x) -> acc + x)', () => {
-  const node = parse('nums reduce ((acc, x) -> acc + x)');
-  assertEquals(node.type, 'ReduceExpression');
-  if (node.type === 'ReduceExpression') {
-    const lambda = node.lambda as any;
-    assertEquals(lambda.params.length, 2);
-    assertEquals(lambda.params[0].name, 'acc');
-    assertEquals(lambda.params[1].name, 'x');
-  }
-});
+Deno.test(
+  'Parser: reduce expression — nums reduce ((acc, x) -> acc + x)',
+  () => {
+    const node = parse('nums reduce ((acc, x) -> acc + x)');
+    assertEquals(node.type, 'ReduceExpression');
+    if (node.type === 'ReduceExpression') {
+      const lambda = node.lambda as any;
+      assertEquals(lambda.params.length, 2);
+      assertEquals(lambda.params[0].name, 'acc');
+      assertEquals(lambda.params[1].name, 'x');
+    }
+  },
+);
 
 // ── Integration: full DataWeave expression ────────────────────────────────────
 
@@ -360,6 +365,67 @@ Deno.test('Parser: as casting operator', () => {
     assertEquals(node.properties?.type, 'ObjectExpression');
   }
 });
+
+// ── Infix higher-order functions ─────────────────────────────────────────────
+
+Deno.test('Parser: infix groupBy with shorthand lambda', () => {
+  const node = parse('payload groupBy $.category');
+  assertEquals(node.type, 'InfixFunctionExpression');
+  if (node.type === 'InfixFunctionExpression') {
+    assertEquals(node.name, 'groupBy');
+    assertEquals(node.source.type, 'Identifier');
+    assertEquals(node.lambda.type, 'MemberExpression');
+  }
+});
+
+Deno.test('Parser: infix orderBy with arrow lambda', () => {
+  const node = parse('payload orderBy ((item) -> item.age)');
+  assertEquals(node.type, 'InfixFunctionExpression');
+  if (node.type === 'InfixFunctionExpression') {
+    assertEquals(node.name, 'orderBy');
+    assertEquals(node.lambda.type, 'ArrowFunction');
+  }
+});
+
+Deno.test('Parser: chained infix functions', () => {
+  const node = parse('payload distinctBy $.id groupBy $.category');
+  assertEquals(node.type, 'InfixFunctionExpression');
+  if (node.type === 'InfixFunctionExpression') {
+    assertEquals(node.name, 'groupBy');
+    assertEquals(node.source.type, 'InfixFunctionExpression');
+    if (node.source.type === 'InfixFunctionExpression') {
+      assertEquals(node.source.name, 'distinctBy');
+    }
+  }
+});
+
+Deno.test('Parser: infix mixes with map/filter', () => {
+  const node = parse('payload filter ($.active) groupBy $.role');
+  assertEquals(node.type, 'InfixFunctionExpression');
+  if (node.type === 'InfixFunctionExpression') {
+    assertEquals(node.name, 'groupBy');
+    assertEquals(node.source.type, 'FilterExpression');
+  }
+});
+
+Deno.test(
+  'Parser: infix function names still usable as call expressions',
+  () => {
+    const node = parse('groupBy(payload, (r) -> r.category)');
+    assertEquals(node.type, 'CallExpression');
+  },
+);
+
+Deno.test(
+  'Parser: infix function name as plain argument is not misparsed',
+  () => {
+    const node = parse('f(groupBy)');
+    assertEquals(node.type, 'CallExpression');
+    if (node.type === 'CallExpression') {
+      assertEquals(node.arguments[0].type, 'Identifier');
+    }
+  },
+);
 
 Deno.test('Parser: header declarations and body', () => {
   const src = `%dw 2.0

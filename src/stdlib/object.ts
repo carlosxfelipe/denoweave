@@ -2,12 +2,16 @@ import type { DWFunction, DWObject, Value } from '../evaluator/environment.ts';
 
 export const OBJECT_FUNCTIONS: Record<string, Value> = {
   keys: ((obj: Value): Value => {
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) return Object.keys(obj as DWObject);
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return Object.keys(obj as DWObject);
+    }
     return [];
   }) as DWFunction,
 
   values: ((obj: Value): Value => {
-    if (obj && typeof obj === 'object' && !Array.isArray(obj)) return Object.values(obj as DWObject) as Value[];
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      return Object.values(obj as DWObject) as Value[];
+    }
     return [];
   }) as DWFunction,
 
@@ -30,8 +34,12 @@ export const OBJECT_FUNCTIONS: Record<string, Value> = {
   }) as DWFunction,
 
   merge: ((obj1: Value, obj2: Value): Value => {
-    const a = (obj1 && typeof obj1 === 'object' && !Array.isArray(obj1)) ? obj1 as DWObject : {};
-    const b = (obj2 && typeof obj2 === 'object' && !Array.isArray(obj2)) ? obj2 as DWObject : {};
+    const a = (obj1 && typeof obj1 === 'object' && !Array.isArray(obj1))
+      ? obj1 as DWObject
+      : {};
+    const b = (obj2 && typeof obj2 === 'object' && !Array.isArray(obj2))
+      ? obj2 as DWObject
+      : {};
     return { ...a, ...b };
   }) as DWFunction,
 
@@ -39,8 +47,11 @@ export const OBJECT_FUNCTIONS: Record<string, Value> = {
     function deep(a: DWObject, b: DWObject): DWObject {
       const result = { ...a };
       for (const [k, v] of Object.entries(b)) {
-        if (v && typeof v === 'object' && !Array.isArray(v) &&
-            result[k] && typeof result[k] === 'object' && !Array.isArray(result[k])) {
+        if (
+          v && typeof v === 'object' && !Array.isArray(v) &&
+          result[k] && typeof result[k] === 'object' &&
+          !Array.isArray(result[k])
+        ) {
           result[k] = deep(result[k] as DWObject, v as DWObject);
         } else {
           result[k] = v;
@@ -48,8 +59,12 @@ export const OBJECT_FUNCTIONS: Record<string, Value> = {
       }
       return result;
     }
-    const a = (obj1 && typeof obj1 === 'object' && !Array.isArray(obj1)) ? obj1 as DWObject : {};
-    const b = (obj2 && typeof obj2 === 'object' && !Array.isArray(obj2)) ? obj2 as DWObject : {};
+    const a = (obj1 && typeof obj1 === 'object' && !Array.isArray(obj1))
+      ? obj1 as DWObject
+      : {};
+    const b = (obj2 && typeof obj2 === 'object' && !Array.isArray(obj2))
+      ? obj2 as DWObject
+      : {};
     return deep(a, b);
   }) as DWFunction,
 

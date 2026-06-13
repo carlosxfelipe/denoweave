@@ -1,5 +1,5 @@
 import type { DWFunction, Value } from '../evaluator/environment.ts';
-import { parse as parseAdapter, type Format } from '../adapters/index.ts';
+import { type Format, parse as parseAdapter } from '../adapters/index.ts';
 
 export const SYSTEM_FUNCTIONS: Record<string, Value> = {
   now: (() => new Date()) as DWFunction,
@@ -21,7 +21,10 @@ export const SYSTEM_FUNCTIONS: Record<string, Value> = {
       format = 'csv';
     } else if (mime.includes('xml') || url.endsWith('.xml')) {
       format = 'xml';
-    } else if (mime.includes('yaml') || mime.includes('yml') || url.endsWith('.yaml') || url.endsWith('.yml')) {
+    } else if (
+      mime.includes('yaml') || mime.includes('yml') || url.endsWith('.yaml') ||
+      url.endsWith('.yml')
+    ) {
       format = 'yaml';
     }
 
@@ -42,7 +45,9 @@ export const SYSTEM_FUNCTIONS: Record<string, Value> = {
     }
 
     if (content === undefined) {
-      throw new Error(`readUrl: Cannot read file "${url}". Details: ${lastErr}`);
+      throw new Error(
+        `readUrl: Cannot read file "${url}". Details: ${lastErr}`,
+      );
     }
 
     return parseAdapter(content, format);

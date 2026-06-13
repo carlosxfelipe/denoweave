@@ -90,16 +90,42 @@ export function parseArgs(argv: string[]): CliArgs {
   while (i < argv.length) {
     const arg = argv[i];
     switch (arg) {
-      case '-h': case '--help':    args.help = true; break;
-      case '-v': case '--version': args.version = true; break;
-      case '--no-pretty':          args.pretty = false; break;
-      case '-i': case '--input':   args.input = argv[++i]; break;
-      case '-e': case '--expr':    args.expr = argv[++i]; break;
-      case '-s': case '--script':  args.script = argv[++i]; break;
-      case '--in':                 args.inFormat = argv[++i]; break;
-      case '-o': case '--out':     args.outFormat = argv[++i]; break;
-      case '--indent':             args.indent = parseInt(argv[++i], 10); break;
-      case '--delimiter':          args.delimiter = argv[++i]; break;
+      case '-h':
+      case '--help':
+        args.help = true;
+        break;
+      case '-v':
+      case '--version':
+        args.version = true;
+        break;
+      case '--no-pretty':
+        args.pretty = false;
+        break;
+      case '-i':
+      case '--input':
+        args.input = argv[++i];
+        break;
+      case '-e':
+      case '--expr':
+        args.expr = argv[++i];
+        break;
+      case '-s':
+      case '--script':
+        args.script = argv[++i];
+        break;
+      case '--in':
+        args.inFormat = argv[++i];
+        break;
+      case '-o':
+      case '--out':
+        args.outFormat = argv[++i];
+        break;
+      case '--indent':
+        args.indent = parseInt(argv[++i], 10);
+        break;
+      case '--delimiter':
+        args.delimiter = argv[++i];
+        break;
       default:
         // Positional: treat as input file if not yet set
         if (!arg.startsWith('-') && args.input === null) args.input = arg;
@@ -114,10 +140,16 @@ export function parseArgs(argv: string[]): CliArgs {
 export function detectFormat(filePath: string): string | null {
   const ext = filePath.split('.').pop()?.toLowerCase();
   switch (ext) {
-    case 'json': return 'json';
-    case 'csv':  return 'csv';
-    case 'xml':  return 'xml';
-    case 'yaml': case 'yml': return 'yaml';
-    default: return null;
+    case 'json':
+      return 'json';
+    case 'csv':
+      return 'csv';
+    case 'xml':
+      return 'xml';
+    case 'yaml':
+    case 'yml':
+      return 'yaml';
+    default:
+      return null;
   }
 }

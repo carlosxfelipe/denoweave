@@ -1,9 +1,9 @@
-import { evaluate } from "../../src/evaluator/evaluator.ts";
+import { evaluate } from '../../src/evaluator/evaluator.ts';
 
-type Step = 
-  | { type: 'from', action: () => Promise<unknown> | unknown }
-  | { type: 'transform', scriptPath: string }
-  | { type: 'to', action: (data: unknown) => Promise<void> | void };
+type Step =
+  | { type: 'from'; action: () => Promise<unknown> | unknown }
+  | { type: 'transform'; scriptPath: string }
+  | { type: 'to'; action: (data: unknown) => Promise<void> | void };
 
 /**
  * A fluent builder for creating Integration Pipelines.
@@ -38,21 +38,22 @@ export class Pipeline {
       if (step.type === 'from') {
         console.log("📥 [Pipeline] Executing 'From' connector...");
         currentPayload = await step.action();
-      } 
-      else if (step.type === 'transform') {
-        console.log(`⚙️  [Pipeline] Transforming via DataWeave (${step.scriptPath})...`);
-        
+      } else if (step.type === 'transform') {
+        console.log(
+          `⚙️  [Pipeline] Transforming via DataWeave (${step.scriptPath})...`,
+        );
+
         // Resolve script path relative to this file
         const scriptUrl = new URL(step.scriptPath, import.meta.url);
         const script = Deno.readTextFileSync(scriptUrl);
-        
+
         currentPayload = evaluate(script, {
-          payload: currentPayload as import("../../src/evaluator/environment.ts").Value,
+          payload:
+            currentPayload as import('../../src/evaluator/environment.ts').Value,
           attributes: {},
-          vars: {}
+          vars: {},
         });
-      } 
-      else if (step.type === 'to') {
+      } else if (step.type === 'to') {
         console.log("📤 [Pipeline] Executing 'To' connector...");
         await step.action(currentPayload);
       }

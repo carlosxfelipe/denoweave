@@ -161,7 +161,10 @@ Deno.test('Evaluator: index access — arr[0]', () => {
 // ── Object & Array literals ───────────────────────────────────────────────────
 
 Deno.test('Evaluator: object literal', () => {
-  assertEquals(evaluate('{ name: "Alice", age: 30 }'), { name: 'Alice', age: 30 });
+  assertEquals(evaluate('{ name: "Alice", age: 30 }'), {
+    name: 'Alice',
+    age: 30,
+  });
 });
 
 Deno.test('Evaluator: nested object literal', () => {
@@ -248,43 +251,51 @@ Deno.test('Evaluator: map — double numbers', () => {
 });
 
 Deno.test('Evaluator: map — with index param', () => {
-  const result = evaluate(
-    'payload map ((item, i) -> i)',
-    { payload: ['a', 'b', 'c'] },
-  );
+  const result = evaluate('payload map ((item, i) -> i)', {
+    payload: ['a', 'b', 'c'],
+  });
   assertEquals(result, [0, 1, 2]);
 });
 
 Deno.test('Evaluator: filter — active users', () => {
   const result = evaluate(
     'payload.users filter ((u) -> u.active)',
-    ctx({ users: [{ name: 'Alice', active: true }, { name: 'Bob', active: false }] }),
+    ctx({
+      users: [
+        { name: 'Alice', active: true },
+        { name: 'Bob', active: false },
+      ],
+    }),
   );
   assertEquals(result, [{ name: 'Alice', active: true }]);
 });
 
 Deno.test('Evaluator: filter — numbers greater than 2', () => {
-  const result = evaluate(
-    'nums filter ((n) -> n > 2)',
-    { nums: [1, 2, 3, 4, 5] },
-  );
+  const result = evaluate('nums filter ((n) -> n > 2)', {
+    nums: [1, 2, 3, 4, 5],
+  });
   assertEquals(result, [3, 4, 5]);
 });
 
 Deno.test('Evaluator: reduce — sum', () => {
-  const result = evaluate(
-    'nums reduce ((acc, n) -> acc + n)',
-    { nums: [1, 2, 3, 4] },
-  );
+  const result = evaluate('nums reduce ((acc, n) -> acc + n)', {
+    nums: [1, 2, 3, 4],
+  });
   assertEquals(result, 10);
 });
 
 Deno.test('Evaluator: reduce — single element returns it', () => {
-  assertEquals(evaluate('nums reduce ((acc, n) -> acc + n)', { nums: [42] }), 42);
+  assertEquals(
+    evaluate('nums reduce ((acc, n) -> acc + n)', { nums: [42] }),
+    42,
+  );
 });
 
 Deno.test('Evaluator: reduce — empty array returns null', () => {
-  assertEquals(evaluate('nums reduce ((acc, n) -> acc + n)', { nums: [] }), null);
+  assertEquals(
+    evaluate('nums reduce ((acc, n) -> acc + n)', { nums: [] }),
+    null,
+  );
 });
 
 // ── If expression ─────────────────────────────────────────────────────────────
@@ -298,10 +309,9 @@ Deno.test('Evaluator: if false branch', () => {
 });
 
 Deno.test('Evaluator: if with condition expression', () => {
-  const result = evaluate(
-    'if (x > 0) "positive" else "non-positive"',
-    { x: 5 },
-  );
+  const result = evaluate('if (x > 0) "positive" else "non-positive"', {
+    x: 5,
+  });
   assertEquals(result, 'positive');
 });
 
@@ -328,12 +338,15 @@ Deno.test('Evaluator: full DataWeave expression — map with object body', () =>
     active: u.enabled
   })`;
 
-  const result = evaluate(src, ctx({
-    users: [
-      { name: 'john', enabled: true },
-      { name: 'jane', enabled: false },
-    ],
-  }));
+  const result = evaluate(
+    src,
+    ctx({
+      users: [
+        { name: 'john', enabled: true },
+        { name: 'jane', enabled: false },
+      ],
+    }),
+  );
 
   assertEquals(result, [
     { name: 'JOHN', active: true },
@@ -343,10 +356,9 @@ Deno.test('Evaluator: full DataWeave expression — map with object body', () =>
 
 Deno.test('Evaluator: chained map + filter', () => {
   // First map then filter (using pipe)
-  const result = evaluate(
-    `(nums map ((n) -> n * 2)) filter ((n) -> n > 4)`,
-    { nums: [1, 2, 3, 4, 5] },
-  );
+  const result = evaluate(`(nums map ((n) -> n * 2)) filter ((n) -> n > 4)`, {
+    nums: [1, 2, 3, 4, 5],
+  });
   assertEquals(result, [6, 8, 10]);
 });
 
@@ -354,7 +366,10 @@ Deno.test('Evaluator: default operator', () => {
   assertEquals(evaluate('x default "fallback"', { x: null }), 'fallback');
   assertEquals(evaluate('x default "fallback"', { x: 'actual' }), 'actual');
   // Error handling default
-  assertEquals(evaluate('payload.nonexistent.key default "fallback"', { payload: null }), 'fallback');
+  assertEquals(
+    evaluate('payload.nonexistent.key default "fallback"', { payload: null }),
+    'fallback',
+  );
 });
 
 Deno.test('Evaluator: as casting operator', () => {
@@ -363,7 +378,9 @@ Deno.test('Evaluator: as casting operator', () => {
   assertEquals(evaluate('"true" as Boolean'), true);
   // date formatting casting
   const dateVal = new Date(2026, 5, 6, 12, 0, 0); // Month is 0-indexed (5 = June)
-  const resultStr = evaluate('d as String { format: "yyyy-MM-dd HH:mm:ss" }', { d: dateVal });
+  const resultStr = evaluate('d as String { format: "yyyy-MM-dd HH:mm:ss" }', {
+    d: dateVal,
+  });
   assertEquals(resultStr, '2026-06-06 12:00:00');
 });
 
@@ -377,6 +394,95 @@ Deno.test('Evaluator: anonymous lambdas using $ and $$', () => {
 
   // reduce: $ is acc, $$ is item
   assertEquals(evaluate('[1, 2, 3, 4] reduce ($ + $$)'), 10);
+});
+
+// ── Infix higher-order functions ──────────────────────────────────────────────
+
+Deno.test('Evaluator: infix groupBy with shorthand lambda', () => {
+  const result = evaluate('payload groupBy $.category', {
+    payload: [
+      { name: 'apple', category: 'fruit' },
+      { name: 'carrot', category: 'veg' },
+      { name: 'banana', category: 'fruit' },
+    ],
+  });
+  assertEquals(result, {
+    fruit: [
+      { name: 'apple', category: 'fruit' },
+      { name: 'banana', category: 'fruit' },
+    ],
+    veg: [{ name: 'carrot', category: 'veg' }],
+  });
+});
+
+Deno.test('Evaluator: infix orderBy with arrow lambda (numeric keys)', () => {
+  const result = evaluate('payload orderBy ((p) -> p.age)', {
+    payload: [
+      { name: 'Carol', age: 35 },
+      { name: 'Alice', age: 9 },
+      { name: 'Bob', age: 25 },
+    ],
+  });
+  assertEquals(result, [
+    { name: 'Alice', age: 9 },
+    { name: 'Bob', age: 25 },
+    { name: 'Carol', age: 35 },
+  ]);
+});
+
+Deno.test('Evaluator: infix distinctBy', () => {
+  const result = evaluate('payload distinctBy $.id', {
+    payload: [{ id: 1 }, { id: 2 }, { id: 1 }],
+  });
+  assertEquals(result, [{ id: 1 }, { id: 2 }]);
+});
+
+Deno.test('Evaluator: infix flatMap', () => {
+  assertEquals(evaluate('[[1, 2], [3]] flatMap $'), [1, 2, 3]);
+});
+
+Deno.test('Evaluator: infix mapObject ($ = value, $$ = key)', () => {
+  const result = evaluate('payload mapObject ($ * 2)', {
+    payload: { a: 1, b: 2 },
+  });
+  assertEquals(result, { a: 2, b: 4 });
+});
+
+Deno.test('Evaluator: infix filterObject', () => {
+  const result = evaluate('payload filterObject ($ > 1)', {
+    payload: { a: 1, b: 2, c: 3 },
+  });
+  assertEquals(result, { b: 2, c: 3 });
+});
+
+Deno.test('Evaluator: infix pluck builds array from object', () => {
+  const result = evaluate('payload pluck ($$ ++ "=" ++ ($ as String))', {
+    payload: { a: 1, b: 2 },
+  });
+  assertEquals(result, ['a=1', 'b=2']);
+});
+
+Deno.test('Evaluator: chained infix filter + groupBy', () => {
+  const result = evaluate('payload filter ($.active) groupBy $.role', {
+    payload: [
+      { name: 'a', role: 'admin', active: true },
+      { name: 'b', role: 'user', active: false },
+      { name: 'c', role: 'admin', active: true },
+    ],
+  });
+  assertEquals(result, {
+    admin: [
+      { name: 'a', role: 'admin', active: true },
+      { name: 'c', role: 'admin', active: true },
+    ],
+  });
+});
+
+Deno.test('Evaluator: infix function names still callable as functions', () => {
+  const result = evaluate('groupBy(payload, (r) -> r.k)', {
+    payload: [{ k: 'x' }, { k: 'y' }, { k: 'x' }],
+  });
+  assertEquals(result, { x: [{ k: 'x' }, { k: 'x' }], y: [{ k: 'y' }] });
 });
 
 Deno.test('Evaluator: header declarations', () => {

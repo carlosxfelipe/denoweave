@@ -9,7 +9,10 @@ import { evaluate } from '../evaluator/evaluator.ts';
 // ── JSON ──────────────────────────────────────────────────────────────────────
 
 Deno.test('Adapter JSON: parse', () => {
-  assertEquals(parseJSON('{"name":"Alice","age":30}'), { name: 'Alice', age: 30 });
+  assertEquals(parseJSON('{"name":"Alice","age":30}'), {
+    name: 'Alice',
+    age: 30,
+  });
   assertEquals(parseJSON('[1,2,3]'), [1, 2, 3]);
 });
 
@@ -30,8 +33,8 @@ Deno.test('Adapter CSV: parse with header', () => {
   const result = parseCSV(csv) as Record<string, unknown>[];
   assertEquals(result.length, 2);
   assertEquals(result[0]['name'], 'Alice');
-  assertEquals(result[0]['age'], 30);          // coerced to number
-  assertEquals(result[0]['active'], true);      // coerced to boolean
+  assertEquals(result[0]['age'], 30); // coerced to number
+  assertEquals(result[0]['active'], true); // coerced to boolean
   assertEquals(result[1]['name'], 'Bob');
   assertEquals(result[1]['active'], false);
 });
@@ -154,19 +157,22 @@ Deno.test('Adapter unified: serialize routing', () => {
 // ── Integration: CSV → DSL → JSON (Phase 5 criterion) ────────────────────────
 
 Deno.test('Integration: CSV → DSL filter → JSON', () => {
-  const csvInput = `name,age,active\nAlice,30,true\nBob,25,false\nCharlie,35,true`;
+  const csvInput =
+    `name,age,active\nAlice,30,true\nBob,25,false\nCharlie,35,true`;
   const payload = parseCSV(csvInput);
 
   const result = evaluate(
     `payload filter ((r) -> r.active)`,
-    { payload }
+    { payload },
   ) as Record<string, unknown>[];
 
   assertEquals(result.length, 2);
   assertEquals(result[0]['name'], 'Alice');
   assertEquals(result[1]['name'], 'Charlie');
 
-  const json = toJSON(result as unknown as import('../evaluator/environment.ts').Value);
+  const json = toJSON(
+    result as unknown as import('../evaluator/environment.ts').Value,
+  );
   assertEquals(JSON.parse(json).length, 2);
 });
 
@@ -176,7 +182,7 @@ Deno.test('Integration: CSV → DSL map → JSON', () => {
 
   const result = evaluate(
     `payload map ((r) -> { name: upper(r.name), score: r.score, grade: if (r.score >= 90) "A" else "B" })`,
-    { payload }
+    { payload },
   );
 
   const json = toJSON(result);
@@ -196,7 +202,7 @@ Deno.test('Integration: JSON → DSL groupBy → XML', () => {
 
   const grouped = evaluate(
     `groupBy(payload, (item) -> item.category)`,
-    { payload }
+    { payload },
   );
 
   const xml = toXML(grouped);

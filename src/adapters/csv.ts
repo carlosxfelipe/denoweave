@@ -55,23 +55,37 @@ export function toCSV(data: Value, options: CsvOptions = {}): string {
     // Object rows
     const headers = Object.keys(firstRow as DWObject);
     const lines: string[] = [];
-    if (useHeader) lines.push(headers.map((h) => quoteField(h, delimiter, quoteChar)).join(delimiter));
+    if (useHeader) {
+      lines.push(
+        headers.map((h) => quoteField(h, delimiter, quoteChar)).join(delimiter),
+      );
+    }
     for (const row of rows) {
       const obj = row as DWObject;
-      lines.push(headers.map((h) => quoteField(String(obj[h] ?? ''), delimiter, quoteChar)).join(delimiter));
+      lines.push(
+        headers.map((h) =>
+          quoteField(String(obj[h] ?? ''), delimiter, quoteChar)
+        ).join(delimiter),
+      );
     }
     return lines.join('\n');
   } else {
     // Array rows
     return (rows as Value[][]).map((row) =>
-      row.map((v) => quoteField(String(v ?? ''), delimiter, quoteChar)).join(delimiter)
+      row.map((v) => quoteField(String(v ?? ''), delimiter, quoteChar)).join(
+        delimiter,
+      )
     ).join('\n');
   }
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-function parseRows(input: string, delimiter: string, quoteChar: string): string[][] {
+function parseRows(
+  input: string,
+  delimiter: string,
+  quoteChar: string,
+): string[][] {
   const rows: string[][] = [];
   const q = quoteChar;
   let row: string[] = [];
@@ -139,9 +153,17 @@ function coerceValue(v: string): Value {
   return v;
 }
 
-function quoteField(value: string, delimiter: string, quoteChar: string): string {
-  if (value.includes(delimiter) || value.includes(quoteChar) || value.includes('\n')) {
-    return quoteChar + value.replaceAll(quoteChar, quoteChar + quoteChar) + quoteChar;
+function quoteField(
+  value: string,
+  delimiter: string,
+  quoteChar: string,
+): string {
+  if (
+    value.includes(delimiter) || value.includes(quoteChar) ||
+    value.includes('\n')
+  ) {
+    return quoteChar + value.replaceAll(quoteChar, quoteChar + quoteChar) +
+      quoteChar;
   }
   return value;
 }

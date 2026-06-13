@@ -1,36 +1,55 @@
 # DenoWeave
 
-> A lightweight data transformation engine compatible with the DataWeave dialect, built from scratch in TypeScript + Deno.
+> A lightweight data transformation engine compatible with the DataWeave
+> dialect, built from scratch in TypeScript + Deno.
 
 ---
-
-
 
 ## Requirements
 
 - [Deno](https://deno.land/) installed on your system.
-- [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno) for VS Code (recommended).
+- [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno)
+  for VS Code (recommended).
 
 ---
 
 ## Why Deno?
 
-Built on Deno, this engine benefits from modern runtime security and dependency management:
+Built on Deno, this engine benefits from modern runtime security and dependency
+management:
 
-- **Secure by Default (Sandbox):** No file system, network, or environment access is granted unless explicitly allowed (e.g., via the `--allow-read` flag). This prevents compromised dependencies from accessing sensitive host resources.
-- **Cryptographic Integrity:** All remote dependencies are locked and verified using a lockfile (`deno.lock`). Any unauthorized modification to the source URL or repository will fail the integrity check and block execution.
-- **No Install Scripts:** Unlike Node.js/npm, Deno does not run arbitrary lifecycle scripts (like `postinstall`) upon resolving dependencies, eliminating a major vector for supply chain attacks.
+- **Secure by Default (Sandbox):** No file system, network, or environment
+  access is granted unless explicitly allowed (e.g., via the `--allow-read`
+  flag). This prevents compromised dependencies from accessing sensitive host
+  resources.
+- **Cryptographic Integrity:** All remote dependencies are locked and verified
+  using a lockfile (`deno.lock`). Any unauthorized modification to the source
+  URL or repository will fail the integrity check and block execution.
+- **No Install Scripts:** Unlike Node.js/npm, Deno does not run arbitrary
+  lifecycle scripts (like `postinstall`) upon resolving dependencies,
+  eliminating a major vector for supply chain attacks.
 
 ---
 
 ## Supported Features
 
-DenoWeave implements a fully-featured parser and evaluator that supports modern DataWeave 2.x syntax:
+DenoWeave implements a fully-featured parser and evaluator that supports modern
+DataWeave 2.x syntax:
+
 - **Core Types**: Strings, Numbers, Booleans, Null, Arrays, Objects.
-- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default (`default`), casting (`as`), array/string/object concatenation (`++`), and range slicing (`to`).
-- **Functions & Lambdas**: Named functions (`fun`), single-param lambdas (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
+- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default
+  (`default`), casting (`as`), array/string/object concatenation (`++`), and
+  range slicing (`to`).
+- **Functions & Lambdas**: Named functions (`fun`), single-param lambdas
+  (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
+- **Infix Higher-Order Functions**: `map`, `filter`, `reduce`, plus
+  DataWeave-style infix usage of `groupBy`, `orderBy`, `distinctBy`, `flatMap`,
+  `mapObject`, `filterObject` and `pluck` (e.g. `payload groupBy $.category`,
+  chainable: `payload filter ($.active) groupBy $.role`).
 - **Variables & Types**: Local variables (`var`), type hints (`type`).
-- **Pattern Matching**: `match` / `case` expressions including literal match, type check (`case is Type`), and named capture with guards (`case q if q > 100`).
+- **Pattern Matching**: `match` / `case` expressions including literal match,
+  type check (`case is Type`), and named capture with guards
+  (`case q if q > 100`).
 - **Scoping**: Local scope evaluation via `do { ... }` blocks.
 - **Control Flow**: `if / else` expressions.
 
@@ -50,16 +69,22 @@ deno task cli --help
 
 ## Compilation / Standalone Build
 
-You can compile DenoWeave into a single, self-contained executable binary that runs on target systems without Deno or Node.js installed.
+You can compile DenoWeave into a single, self-contained executable binary that
+runs on target systems without Deno or Node.js installed.
 
 ### Build for your current platform:
+
 ```bash
 deno task compile
 ```
-This generates the executable binary at `build/denoweave` (or `build/denoweave.exe` on Windows).
+
+This generates the executable binary at `build/denoweave` (or
+`build/denoweave.exe` on Windows).
 
 ### Cross-compiling for other platforms:
+
 You can build for other target operating systems using the `--target` flag:
+
 ```bash
 # Target Linux (x64)
 deno compile --allow-read --target x86_64-unknown-linux-gnu --output build/denoweave-linux src/cli/main.ts
@@ -72,6 +97,7 @@ deno compile --allow-read --target aarch64-apple-darwin --output build/denoweave
 ```
 
 ### Running the binary:
+
 ```bash
 ./build/denoweave --script examples/json-to-json/transform.dwl --input examples/json-to-json/input.json
 ```
@@ -130,9 +156,24 @@ Output:
 
 ```json
 [
-  { "position": 1, "product": "Notebook", "status": "AVAILABLE", "totalWithTax": 1099.99 },
-  { "position": 2, "product": "Mouse",    "status": "AVAILABLE", "totalWithTax": 65.98 },
-  { "position": 3, "product": "Keyboard", "status": "OUT_OF_STOCK", "totalWithTax": 0 }
+  {
+    "position": 1,
+    "product": "Notebook",
+    "status": "AVAILABLE",
+    "totalWithTax": 1099.99
+  },
+  {
+    "position": 2,
+    "product": "Mouse",
+    "status": "AVAILABLE",
+    "totalWithTax": 65.98
+  },
+  {
+    "position": 3,
+    "product": "Keyboard",
+    "status": "OUT_OF_STOCK",
+    "totalWithTax": 0
+  }
 ]
 ```
 
@@ -140,34 +181,49 @@ Output:
 
 ## Running a Complete Example
 
-The project includes practical examples organized by use-cases in the `examples/` folder. Here are the main examples you can run:
+The project includes practical examples organized by use-cases in the
+`examples/` folder. Here are the main examples you can run:
 
 ### JSON Transformation (Standalone)
-Load a data file `input.json`, transform it via `transform.dwl`, and print the formatted result:
+
+Load a data file `input.json`, transform it via `transform.dwl`, and print the
+formatted result:
+
 ```bash
 deno run --allow-read examples/json-to-json/run.ts
 ```
 
 ### CSV to XML (CLI)
+
 Transform CSV to XML directly via the CLI:
+
 ```bash
 deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
 ```
 
 ### HTTP Server (API Transformation)
-Run a Deno web server that accepts POST requests and transforms the incoming JSON payload in real-time:
+
+Run a Deno web server that accepts POST requests and transforms the incoming
+JSON payload in real-time:
+
 ```bash
 deno run --allow-net --allow-read examples/http-server/server.ts
 ```
 
 ### Connectors / ETL Flow
-Simulates a classic MuleSoft "Connector" flow by fetching real data from an external HTTP API and transforming it:
+
+Simulates a classic MuleSoft "Connector" flow by fetching real data from an
+external HTTP API and transforming it:
+
 ```bash
 deno run --allow-net --allow-read examples/connectors/flow.ts
 ```
 
 ### Docs-as-Code Pipeline
-Demonstrates a fluent, programmable API (like Apache Camel) to orchestrate data extraction, transformation, and loading (`from`, `transform`, `to`):
+
+Demonstrates a fluent, programmable API (like Apache Camel) to orchestrate data
+extraction, transformation, and loading (`from`, `transform`, `to`):
+
 ```bash
 deno run --allow-net --allow-read examples/pipeline/run.ts
 ```
@@ -176,19 +232,20 @@ deno run --allow-net --allow-read examples/pipeline/run.ts
 
 ## Stdlib (Selection)
 
-| Category | Functions |
-|-----------|-----------|
-| **String** | `upper`, `lower`, `trim`, `split`, `join`, `replace`, `contains`, `startsWith`, `endsWith`, `padLeft`, `padRight` |
-| **Array** | `map`, `filter`, `reduce`, `groupBy`, `orderBy`, `distinctBy`, `pluck`, `first`, `last`, `sum`, `avg`, `min`, `max`, `zip`, `flatten` |
-| **Object** | `keys`, `values`, `entries`, `merge`, `deepMerge`, `mapObject`, `filterObject`, `pick`, `omit`, `has` |
-| **Math** | `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `log`, `mod` |
-| **Type** | `typeOf`, `isNull`, `isEmpty`, `length` |
+| Category   | Functions                                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **String** | `upper`, `lower`, `trim`, `split`, `join`, `replace`, `contains`, `startsWith`, `endsWith`, `padLeft`, `padRight`                     |
+| **Array**  | `map`, `filter`, `reduce`, `groupBy`, `orderBy`, `distinctBy`, `pluck`, `first`, `last`, `sum`, `avg`, `min`, `max`, `zip`, `flatten` |
+| **Object** | `keys`, `values`, `entries`, `merge`, `deepMerge`, `mapObject`, `filterObject`, `pick`, `omit`, `has`                                 |
+| **Math**   | `abs`, `ceil`, `floor`, `round`, `sqrt`, `pow`, `log`, `mod`                                                                          |
+| **Type**   | `typeOf`, `isNull`, `isEmpty`, `length`                                                                                               |
 
 ---
 
 ## Tests
 
-The project includes a suite of 219 automated tests to ensure the correct behavior of all components in the transformation engine.
+The project includes a suite of 219 automated tests to ensure the correct
+behavior of all components in the transformation engine.
 
 To run the tests:
 
@@ -222,19 +279,41 @@ JSON / CSV / XML / YAML
 
 ## Architectural Notes vs Official DataWeave
 
-Since this is an educational and experimental project, its architecture differs fundamentally from the official MuleSoft DataWeave implementation:
+Since this is an educational and experimental project, its architecture differs
+fundamentally from the official MuleSoft DataWeave implementation:
 
-- **Memory and Streaming:** The official JVM DataWeave engine relies heavily on reactive streams, which allows it to process massive files (e.g., multi-gigabyte CSVs) with a very small memory footprint. DenoWeave, by contrast, loads the entire payload into memory to build its Abstract Syntax Tree (AST). This means DenoWeave will hit V8 memory limits if you attempt to process extremely large datasets.
-- **Startup Time (Cold Starts):** Because DenoWeave runs on the V8 JavaScript engine rather than the JVM, it bypasses the typical Java "cold start" delay. This makes it an interesting experiment for lightweight, serverless environments (like AWS Lambda or Deno Deploy) where scripts need to start and execute instantly, provided the payloads remain reasonably small.
-- **Future Evolution (Streaming & Wasm):** If someone were to fork or evolve this project to handle multi-gigabyte files, the modern Deno ecosystem provides excellent native paths. The data adapters and evaluator could be refactored to use the Web Streams API and Async Iterators to process data chunk-by-chunk with a near-zero memory footprint. Alternatively, the core evaluation engine could be rewritten in Rust and compiled to WebAssembly (Wasm) to run inside Deno at near-native speeds.
+- **Memory and Streaming:** The official JVM DataWeave engine relies heavily on
+  reactive streams, which allows it to process massive files (e.g.,
+  multi-gigabyte CSVs) with a very small memory footprint. DenoWeave, by
+  contrast, loads the entire payload into memory to build its Abstract Syntax
+  Tree (AST). This means DenoWeave will hit V8 memory limits if you attempt to
+  process extremely large datasets.
+- **Startup Time (Cold Starts):** Because DenoWeave runs on the V8 JavaScript
+  engine rather than the JVM, it bypasses the typical Java "cold start" delay.
+  This makes it an interesting experiment for lightweight, serverless
+  environments (like AWS Lambda or Deno Deploy) where scripts need to start and
+  execute instantly, provided the payloads remain reasonably small.
+- **Future Evolution (Streaming & Wasm):** If someone were to fork or evolve
+  this project to handle multi-gigabyte files, the modern Deno ecosystem
+  provides excellent native paths. The data adapters and evaluator could be
+  refactored to use the Web Streams API and Async Iterators to process data
+  chunk-by-chunk with a near-zero memory footprint. Alternatively, the core
+  evaluation engine could be rewritten in Rust and compiled to WebAssembly
+  (Wasm) to run inside Deno at near-native speeds.
 
 ---
 
 ## Disclaimer
 
-DenoWeave is an independent, open-source project, implemented from scratch in TypeScript/Deno with the sole purpose of interoperability and data compatibility. There is no reuse of proprietary code or reverse engineering of closed binaries.
+DenoWeave is an independent, open-source project, implemented from scratch in
+TypeScript/Deno with the sole purpose of interoperability and data
+compatibility. There is no reuse of proprietary code or reverse engineering of
+closed binaries.
 
-*MuleSoft, Anypoint Platform, and DataWeave are registered trademarks of MuleSoft, LLC, a subsidiary of Salesforce, Inc. This project has no affiliation, sponsorship, association, or endorsement of any kind with MuleSoft or Salesforce.*
+_MuleSoft, Anypoint Platform, and DataWeave are registered trademarks of
+MuleSoft, LLC, a subsidiary of Salesforce, Inc. This project has no affiliation,
+sponsorship, association, or endorsement of any kind with MuleSoft or
+Salesforce._
 
 ---
 

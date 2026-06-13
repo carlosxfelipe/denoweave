@@ -1,4 +1,4 @@
-import { evaluate } from "../../src/evaluator/evaluator.ts";
+import { evaluate } from '../../src/evaluator/evaluator.ts';
 
 const script = `
 %dw 2.0

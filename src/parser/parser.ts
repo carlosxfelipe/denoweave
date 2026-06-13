@@ -1,12 +1,17 @@
 import { Lexer } from '../lexer/lexer.ts';
-import { Token, TokenType, KEYWORDS } from '../lexer/token.ts';
+import { KEYWORDS, Token, TokenType } from '../lexer/token.ts';
 import type * as AST from '../ast/nodes.ts';
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
 export class ParseError extends Error {
-  constructor(message: string, public readonly token: Token) {
-    super(`[${token.line}:${token.column}] ParseError: ${message} (got "${token.value}")`);
+  constructor(
+    message: string,
+    public readonly token: Token,
+  ) {
+    super(
+      `[${token.line}:${token.column}] ParseError: ${message} (got "${token.value}")`,
+    );
     this.name = 'ParseError';
   }
 }
@@ -21,7 +26,9 @@ export class ParseError extends Error {
  *   program        → expression EOF
  *   expression     → pipe
  *   pipe           → infix ("|>" infix)*
- *   infix          → logical (("map"|"filter"|"reduce") lambda)*
+ *   infix          → logical (("map"|"filter"|"reduce"|"groupBy"|"orderBy"
+ *                             |"distinctBy"|"flatMap"|"mapObject"
+ *                             |"filterObject"|"pluck") lambda)*
  *   logical        → comparison (("and"|"or") comparison)*
  *   comparison     → range (compOp range)*
  *   range          → additive ("to" additive)*
@@ -35,6 +42,20 @@ export class ParseError extends Error {
  *                  | "[" array "]"
  *                  | "if" "(" expr ")" expr "else" expr
  */
+/**
+ * Higher-order stdlib functions that can be used in infix position,
+ * DataWeave style: `payload groupBy $.category`.
+ */
+const INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
+  'groupBy',
+  'orderBy',
+  'distinctBy',
+  'flatMap',
+  'mapObject',
+  'filterObject',
+  'pluck',
+]);
+
 export class Parser {
   private tokens: Token[];
   private pos: number = 0;
@@ -54,14 +75,23 @@ export class Parser {
     // This prevents `do { var x = 1 --- x }` from being misidentified as a header.
     let _depth = 0;
     const hasHeader = this.tokens.some((t) => {
-      if (t.type === TokenType.LBRACE) { _depth++; return false; }
-      if (t.type === TokenType.RBRACE) { _depth--; return false; }
+      if (t.type === TokenType.LBRACE) {
+        _depth++;
+        return false;
+      }
+      if (t.type === TokenType.RBRACE) {
+        _depth--;
+        return false;
+      }
       return t.type === TokenType.HEADER_SEPARATOR && _depth === 0;
     });
     const declarations: AST.Declaration[] = [];
 
     if (hasHeader) {
-      while (!this.check(TokenType.HEADER_SEPARATOR) && !this.check(TokenType.EOF)) {
+      while (
+        !this.check(TokenType.HEADER_SEPARATOR) &&
+        !this.check(TokenType.EOF)
+      ) {
         const tok = this.peek();
         if (tok.type === TokenType.PERCENT) {
           this.advance(); // consume %
@@ -110,7 +140,12 @@ export class Parser {
             !this.check(TokenType.TYPE)
           ) {
             const cur = this.peek();
-            if (cur.type === TokenType.IDENT && (cur.value === 'output' || cur.value === 'input')) break;
+            if (
+              cur.type === TokenType.IDENT &&
+              (cur.value === 'output' || cur.value === 'input')
+            ) {
+              break;
+            }
             this.advance();
           }
         } else {
@@ -134,7 +169,13 @@ export class Parser {
     }
     this.expect(TokenType.ASSIGN);
     const value = this.parseExpression();
-    return { type: 'VariableDeclaration', name, value, line: start.line, column: start.column };
+    return {
+      type: 'VariableDeclaration',
+      name,
+      value,
+      line: start.line,
+      column: start.column,
+    };
   }
 
   private parseFunDeclaration(): AST.FunctionDeclaration {
@@ -144,7 +185,12 @@ export class Parser {
     const params: AST.Identifier[] = [];
     while (!this.check(TokenType.RPAREN) && !this.check(TokenType.EOF)) {
       const p = this.expect(TokenType.IDENT);
-      params.push({ type: 'Identifier', name: p.value, line: p.line, column: p.column });
+      params.push({
+        type: 'Identifier',
+        name: p.value,
+        line: p.line,
+        column: p.column,
+      });
       if (this.check(TokenType.COLON)) {
         this.advance();
         this.parseTypeAnnotation();
@@ -158,7 +204,14 @@ export class Parser {
     }
     this.expect(TokenType.ASSIGN);
     const body = this.parseExpression();
-    return { type: 'FunctionDeclaration', name, params, body, line: start.line, column: start.column };
+    return {
+      type: 'FunctionDeclaration',
+      name,
+      params,
+      body,
+      line: start.line,
+      column: start.column,
+    };
   }
 
   private parseTypeDeclaration(): AST.TypeDeclaration {
@@ -169,12 +222,13 @@ export class Parser {
     let braceCount = 0;
     while (!this.check(TokenType.EOF)) {
       const tok = this.peek();
-      if (braceCount === 0 && (
-        tok.type === TokenType.VAR ||
-        tok.type === TokenType.FUN ||
-        tok.type === TokenType.TYPE ||
-        tok.type === TokenType.HEADER_SEPARATOR
-      )) {
+      if (
+        braceCount === 0 &&
+        (tok.type === TokenType.VAR ||
+          tok.type === TokenType.FUN ||
+          tok.type === TokenType.TYPE ||
+          tok.type === TokenType.HEADER_SEPARATOR)
+      ) {
         break;
       }
       if (tok.type === TokenType.LBRACE) braceCount++;
@@ -182,18 +236,25 @@ export class Parser {
       def += ' ' + tok.value;
       this.advance();
     }
-    return { type: 'TypeDeclaration', name, definition: def.trim(), line: start.line, column: start.column };
+    return {
+      type: 'TypeDeclaration',
+      name,
+      definition: def.trim(),
+      line: start.line,
+      column: start.column,
+    };
   }
 
   private parseTypeAnnotation(): void {
     let braceCount = 0;
     while (!this.check(TokenType.EOF)) {
       const tok = this.peek();
-      if (braceCount === 0 && (
-        tok.type === TokenType.ASSIGN ||
-        tok.type === TokenType.RPAREN ||
-        tok.type === TokenType.COMMA
-      )) {
+      if (
+        braceCount === 0 &&
+        (tok.type === TokenType.ASSIGN ||
+          tok.type === TokenType.RPAREN ||
+          tok.type === TokenType.COMMA)
+      ) {
         break;
       }
       if (tok.type === TokenType.LBRACE) braceCount++;
@@ -229,14 +290,15 @@ export class Parser {
     return left;
   }
 
-  /** infix → comparison (("map"|"filter"|"reduce") lambda)* */
+  /** infix → comparison (("map"|"filter"|"reduce"|INFIX_FN) lambda)* */
   private parseInfix(): AST.Expression {
     let left = this.parseLogical();
 
     while (
       this.check(TokenType.MAP) ||
       this.check(TokenType.FILTER) ||
-      this.check(TokenType.REDUCE)
+      this.check(TokenType.REDUCE) ||
+      this.checkInfixFunction()
     ) {
       const op = this.advance();
       const lambda = this.parseLambda();
@@ -245,12 +307,46 @@ export class Parser {
         left = { type: 'MapExpression', source: left, lambda };
       } else if (op.type === TokenType.FILTER) {
         left = { type: 'FilterExpression', source: left, lambda };
-      } else {
+      } else if (op.type === TokenType.REDUCE) {
         left = { type: 'ReduceExpression', source: left, lambda };
+      } else {
+        left = {
+          type: 'InfixFunctionExpression',
+          name: op.value,
+          source: left,
+          lambda,
+        };
       }
     }
 
     return left;
+  }
+
+  /**
+   * True when the current token is a stdlib higher-order function name used
+   * in infix position (e.g. `payload groupBy ...`). Requires a token after it
+   * that can plausibly start a lambda/expression, so a bare reference to the
+   * identifier (`f(groupBy)`, end of input, etc.) is not misparsed.
+   */
+  private checkInfixFunction(): boolean {
+    if (
+      !this.check(TokenType.IDENT) ||
+      !INFIX_FUNCTIONS.has(this.peek().value)
+    ) {
+      return false;
+    }
+    const next = this.peekAhead(1);
+    if (!next) return false;
+    switch (next.type) {
+      case TokenType.EOF:
+      case TokenType.RPAREN:
+      case TokenType.RBRACKET:
+      case TokenType.RBRACE:
+      case TokenType.COMMA:
+        return false;
+      default:
+        return true;
+    }
   }
 
   /** logical → comparison (("and"|"or") comparison)* */
@@ -268,9 +364,12 @@ export class Parser {
   private parseComparison(): AST.Expression {
     let left = this.parseRange();
     while (
-      this.check(TokenType.EQ) || this.check(TokenType.NEQ) ||
-      this.check(TokenType.LT) || this.check(TokenType.LTE) ||
-      this.check(TokenType.GT) || this.check(TokenType.GTE)
+      this.check(TokenType.EQ) ||
+      this.check(TokenType.NEQ) ||
+      this.check(TokenType.LT) ||
+      this.check(TokenType.LTE) ||
+      this.check(TokenType.GT) ||
+      this.check(TokenType.GTE)
     ) {
       const op = this.advance();
       const right = this.parseRange();
@@ -293,7 +392,11 @@ export class Parser {
   /** additive → multiplicative (("+"|"-") multiplicative)* */
   private parseAdditive(): AST.Expression {
     let left = this.parseMultiplicative();
-    while (this.check(TokenType.PLUS) || this.check(TokenType.PLUS_PLUS) || this.check(TokenType.MINUS)) {
+    while (
+      this.check(TokenType.PLUS) ||
+      this.check(TokenType.PLUS_PLUS) ||
+      this.check(TokenType.MINUS)
+    ) {
       const op = this.advance();
       const right = this.parseMultiplicative();
       left = { type: 'BinaryExpression', operator: op.value, left, right };
@@ -316,11 +419,19 @@ export class Parser {
   private parseUnary(): AST.Expression {
     if (this.check(TokenType.NOT)) {
       const op = this.advance();
-      return { type: 'UnaryExpression', operator: op.value, operand: this.parseUnary() };
+      return {
+        type: 'UnaryExpression',
+        operator: op.value,
+        operand: this.parseUnary(),
+      };
     }
     if (this.check(TokenType.MINUS)) {
       this.advance();
-      return { type: 'UnaryExpression', operator: '-', operand: this.parseUnary() };
+      return {
+        type: 'UnaryExpression',
+        operator: '-',
+        operand: this.parseUnary(),
+      };
     }
     return this.parsePostfix();
   }
@@ -341,7 +452,12 @@ export class Parser {
         expr = {
           type: 'MemberExpression',
           object: expr,
-          property: { type: 'Identifier', name: prop.value, line: prop.line, column: prop.column },
+          property: {
+            type: 'Identifier',
+            name: prop.value,
+            line: prop.line,
+            column: prop.column,
+          },
           line: prop.line,
           column: prop.column,
         };
@@ -362,7 +478,14 @@ export class Parser {
         if (this.check(TokenType.LBRACE)) {
           properties = this.parseObjectExpression();
         }
-        expr = { type: 'AsExpression', expression: expr, targetType, properties, line: start.line, column: start.column };
+        expr = {
+          type: 'AsExpression',
+          expression: expr,
+          targetType,
+          properties,
+          line: start.line,
+          column: start.column,
+        };
       } else if (this.check(TokenType.MATCH)) {
         const mTok = this.advance(); // consume `match`
         expr = this.parseMatchExpression(expr, mTok.line, mTok.column);
@@ -382,31 +505,60 @@ export class Parser {
     // Number literal
     if (tok.type === TokenType.NUMBER) {
       this.advance();
-      return { type: 'Literal', value: parseFloat(tok.value), raw: tok.value, line: tok.line, column: tok.column };
+      return {
+        type: 'Literal',
+        value: parseFloat(tok.value),
+        raw: tok.value,
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // String literal
     if (tok.type === TokenType.STRING) {
       this.advance();
-      return { type: 'Literal', value: tok.value, raw: `"${tok.value}"`, line: tok.line, column: tok.column };
+      return {
+        type: 'Literal',
+        value: tok.value,
+        raw: `"${tok.value}"`,
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // Boolean literal
     if (tok.type === TokenType.BOOLEAN) {
       this.advance();
-      return { type: 'Literal', value: tok.value === 'true', raw: tok.value, line: tok.line, column: tok.column };
+      return {
+        type: 'Literal',
+        value: tok.value === 'true',
+        raw: tok.value,
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // Null literal
     if (tok.type === TokenType.NULL) {
       this.advance();
-      return { type: 'Literal', value: null, raw: 'null', line: tok.line, column: tok.column };
+      return {
+        type: 'Literal',
+        value: null,
+        raw: 'null',
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // Dollar / Double Dollar (Anonymous args)
     if (tok.type === TokenType.DOLLAR || tok.type === TokenType.DOUBLE_DOLLAR) {
       this.advance();
-      return { type: 'AnonymousArgExpression', name: tok.value as '$' | '$$', line: tok.line, column: tok.column };
+      return {
+        type: 'AnonymousArgExpression',
+        name: tok.value as '$' | '$$',
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // Identifier — could also be the start of `ident -> body` (short arrow)
@@ -418,13 +570,25 @@ export class Parser {
         const body = this.parseExpression();
         return {
           type: 'ArrowFunction',
-          params: [{ type: 'Identifier', name: tok.value, line: tok.line, column: tok.column }],
+          params: [
+            {
+              type: 'Identifier',
+              name: tok.value,
+              line: tok.line,
+              column: tok.column,
+            },
+          ],
           body,
           line: tok.line,
           column: tok.column,
         };
       }
-      return { type: 'Identifier', name: tok.value, line: tok.line, column: tok.column };
+      return {
+        type: 'Identifier',
+        name: tok.value,
+        line: tok.line,
+        column: tok.column,
+      };
     }
 
     // Parenthesized expression or arrow function: ( ... )
@@ -476,7 +640,13 @@ export class Parser {
       this.advance();
       this.expect(TokenType.ARROW);
       const body = this.parseExpression();
-      return { type: 'ArrowFunction', params: [], body, line: openParen.line, column: openParen.column };
+      return {
+        type: 'ArrowFunction',
+        params: [],
+        body,
+        line: openParen.line,
+        column: openParen.column,
+      };
     }
 
     // Save position for backtracking
@@ -489,7 +659,13 @@ export class Parser {
       // Confirmed arrow function
       this.advance(); // consume ->
       const body = this.parseExpression();
-      return { type: 'ArrowFunction', params: maybeParams, body, line: openParen.line, column: openParen.column };
+      return {
+        type: 'ArrowFunction',
+        params: maybeParams,
+        body,
+        line: openParen.line,
+        column: openParen.column,
+      };
     }
 
     // Not an arrow function — backtrack and parse as grouped expression
@@ -511,7 +687,12 @@ export class Parser {
       const tok = this.peek();
       if (tok.type !== TokenType.IDENT) return null;
 
-      const paramNode: AST.Identifier = { type: 'Identifier', name: tok.value, line: tok.line, column: tok.column };
+      const paramNode: AST.Identifier = {
+        type: 'Identifier',
+        name: tok.value,
+        line: tok.line,
+        column: tok.column,
+      };
       this.advance();
 
       if (this.check(TokenType.ASSIGN)) {
@@ -519,16 +700,40 @@ export class Parser {
         const valTok = this.peek();
         if (valTok.type === TokenType.NUMBER) {
           this.advance();
-          paramNode.defaultValue = { type: 'Literal', value: Number(valTok.value), raw: valTok.value, line: valTok.line, column: valTok.column };
+          paramNode.defaultValue = {
+            type: 'Literal',
+            value: Number(valTok.value),
+            raw: valTok.value,
+            line: valTok.line,
+            column: valTok.column,
+          };
         } else if (valTok.type === TokenType.STRING) {
           this.advance();
-          paramNode.defaultValue = { type: 'Literal', value: valTok.value, raw: `"${valTok.value}"`, line: valTok.line, column: valTok.column };
+          paramNode.defaultValue = {
+            type: 'Literal',
+            value: valTok.value,
+            raw: `"${valTok.value}"`,
+            line: valTok.line,
+            column: valTok.column,
+          };
         } else if (valTok.type === TokenType.BOOLEAN) {
           this.advance();
-          paramNode.defaultValue = { type: 'Literal', value: valTok.value === 'true', raw: valTok.value, line: valTok.line, column: valTok.column };
+          paramNode.defaultValue = {
+            type: 'Literal',
+            value: valTok.value === 'true',
+            raw: valTok.value,
+            line: valTok.line,
+            column: valTok.column,
+          };
         } else if (valTok.type === TokenType.NULL) {
           this.advance();
-          paramNode.defaultValue = { type: 'Literal', value: null, raw: 'null', line: valTok.line, column: valTok.column };
+          paramNode.defaultValue = {
+            type: 'Literal',
+            value: null,
+            raw: 'null',
+            line: valTok.line,
+            column: valTok.column,
+          };
         } else {
           return null;
         }
@@ -557,21 +762,41 @@ export class Parser {
       const keyTok = this.peek();
       let key: AST.Identifier | AST.Literal;
 
-      const isProp = keyTok.type === TokenType.IDENT || Object.values(KEYWORDS).includes(keyTok.type);
+      const isProp = keyTok.type === TokenType.IDENT ||
+        Object.values(KEYWORDS).includes(keyTok.type);
 
       if (isProp) {
         this.advance();
-        key = { type: 'Identifier', name: keyTok.value, line: keyTok.line, column: keyTok.column };
+        key = {
+          type: 'Identifier',
+          name: keyTok.value,
+          line: keyTok.line,
+          column: keyTok.column,
+        };
       } else if (keyTok.type === TokenType.STRING) {
         this.advance();
-        key = { type: 'Literal', value: keyTok.value, raw: `"${keyTok.value}"`, line: keyTok.line, column: keyTok.column };
+        key = {
+          type: 'Literal',
+          value: keyTok.value,
+          raw: `"${keyTok.value}"`,
+          line: keyTok.line,
+          column: keyTok.column,
+        };
       } else {
-        throw new ParseError(`Expected property key (identifier or string)`, keyTok);
+        throw new ParseError(
+          `Expected property key (identifier or string)`,
+          keyTok,
+        );
       }
 
       // Shorthand: `{ name }` → `{ name: name }`
       if (!this.check(TokenType.COLON)) {
-        if (key.type !== 'Identifier') throw new ParseError('Shorthand only valid for identifier keys', keyTok);
+        if (key.type !== 'Identifier') {
+          throw new ParseError(
+            'Shorthand only valid for identifier keys',
+            keyTok,
+          );
+        }
         properties.push({ type: 'Property', key, value: key, shorthand: true });
       } else {
         this.expect(TokenType.COLON);
@@ -583,14 +808,24 @@ export class Parser {
     }
 
     this.expect(TokenType.RBRACE);
-    return { type: 'ObjectExpression', properties, line: open.line, column: open.column };
+    return {
+      type: 'ObjectExpression',
+      properties,
+      line: open.line,
+      column: open.column,
+    };
   }
 
   private parseArrayExpression(): AST.ArrayExpression {
     const open = this.expect(TokenType.LBRACKET);
     const elements = this.parseArgList(TokenType.RBRACKET);
     this.expect(TokenType.RBRACKET);
-    return { type: 'ArrayExpression', elements, line: open.line, column: open.column };
+    return {
+      type: 'ArrayExpression',
+      elements,
+      line: open.line,
+      column: open.column,
+    };
   }
 
   private parseIfExpression(): AST.IfExpression {
@@ -601,19 +836,29 @@ export class Parser {
     const consequent = this.parseExpression();
     this.expect(TokenType.ELSE);
     const alternate = this.parseExpression();
-    return { type: 'IfExpression', condition, consequent, alternate, line: kw.line, column: kw.column };
+    return {
+      type: 'IfExpression',
+      condition,
+      consequent,
+      alternate,
+      line: kw.line,
+      column: kw.column,
+    };
   }
 
   // ── Lambda helper ────────────────────────────────────────────────────────
 
   /**
-   * Parses a lambda (ArrowFunction) expected after map/filter/reduce.
-   * DataWeave allows both:
+   * Parses a lambda (ArrowFunction) expected after map/filter/reduce
+   * or an infix stdlib function. DataWeave allows both:
    *   - `((u) -> u.name)`   — outer parens wrap the arrow function
    *   - `(u) -> u.name`     — direct arrow (no outer parens)
+   *
+   * Parses BELOW infix precedence so chained operators associate left:
+   * `payload distinctBy $.id groupBy $.category` applies distinctBy first.
    */
   private parseLambda(): AST.Expression {
-    return this.parseExpression();
+    return this.parseLogical();
   }
 
   // ── do block ────────────────────────────────────────────────────────────────
@@ -642,7 +887,13 @@ export class Parser {
     this.expect(TokenType.HEADER_SEPARATOR); // consume ---
     const body = this.parseExpression();
     this.expect(TokenType.RBRACE);
-    return { type: 'DoExpression', declarations, body, line: start.line, column: start.column };
+    return {
+      type: 'DoExpression',
+      declarations,
+      body,
+      line: start.line,
+      column: start.column,
+    };
   }
 
   // ── match / case ──────────────────────────────────────────────────────────
@@ -657,7 +908,11 @@ export class Parser {
    *   case is <TypeName> if (...)   -> expr   (type check + guard; $ = subject)
    *   else                          -> expr   (required catch-all)
    */
-  private parseMatchExpression(subject: AST.Expression, line?: number, column?: number): AST.MatchExpression {
+  private parseMatchExpression(
+    subject: AST.Expression,
+    line?: number,
+    column?: number,
+  ): AST.MatchExpression {
     this.expect(TokenType.LBRACE);
     const cases: AST.MatchCase[] = [];
     let elseBody: AST.Expression | null = null;
@@ -677,11 +932,17 @@ export class Parser {
           this.advance(); // is
           const typeName = this.expect(TokenType.IDENT).value;
           pattern = { kind: 'type', typeName };
-        } else if (this.check(TokenType.IDENT) && this.peekAhead(1)?.type === TokenType.IF) {
+        } else if (
+          this.check(TokenType.IDENT) &&
+          this.peekAhead(1)?.type === TokenType.IF
+        ) {
           // `case q if condition` — named capture (binds value to `q` in guard + body)
           const name = this.advance().value;
           pattern = { kind: 'capture', name };
-        } else if (this.check(TokenType.IDENT) && this.peekAhead(1)?.type === TokenType.ARROW) {
+        } else if (
+          this.check(TokenType.IDENT) &&
+          this.peekAhead(1)?.type === TokenType.ARROW
+        ) {
           // `case q ->` — named capture with no guard (always matches)
           const name = this.advance().value;
           pattern = { kind: 'capture', name };
@@ -714,7 +975,10 @@ export class Parser {
     this.expect(TokenType.RBRACE);
 
     if (elseBody === null) {
-      throw new ParseError('match expression requires an `else` clause', this.peek());
+      throw new ParseError(
+        'match expression requires an `else` clause',
+        this.peek(),
+      );
     }
 
     return { type: 'MatchExpression', subject, cases, elseBody, line, column };
@@ -761,7 +1025,8 @@ export class Parser {
 
   private expectPropName(): Token {
     const tok = this.peek();
-    const isProp = tok.type === TokenType.IDENT || Object.values(KEYWORDS).includes(tok.type);
+    const isProp = tok.type === TokenType.IDENT ||
+      Object.values(KEYWORDS).includes(tok.type);
     if (!isProp) {
       throw new ParseError(`Expected property name but got ${tok.type}`, tok);
     }

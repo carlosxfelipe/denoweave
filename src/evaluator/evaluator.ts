@@ -1,6 +1,11 @@
 import { Parser } from '../parser/parser.ts';
 import type * as AST from '../ast/nodes.ts';
-import { Environment, type DWFunction, type DWObject, type Value } from './environment.ts';
+import {
+  type DWFunction,
+  type DWObject,
+  Environment,
+  type Value,
+} from './environment.ts';
 import { STDLIB } from '../stdlib/index.ts';
 
 // ── Runtime error ─────────────────────────────────────────────────────────────
@@ -12,7 +17,6 @@ export class RuntimeError extends Error {
   }
 }
 
-
 // ── Core evaluator (tree-walker) ──────────────────────────────────────────────
 
 class Evaluator {
@@ -22,7 +26,6 @@ class Evaluator {
    */
   eval(node: AST.Expression, env: Environment): Value {
     switch (node.type) {
-
       // ─────────────────────────────────────────────────────────────────────
       // Leaves
       // ─────────────────────────────────────────────────────────────────────
@@ -51,14 +54,16 @@ class Evaluator {
             return idx.map((i) => (obj as Value[])[Number(i)] ?? null);
           }
           if (typeof idx !== 'number') {
-            throw new RuntimeError(`Array index must be a number or array, got ${typeof idx}`);
+            throw new RuntimeError(
+              `Array index must be a number or array, got ${typeof idx}`,
+            );
           }
           return (obj as Value[])[idx] ?? null;
         }
 
         if (typeof obj === 'string') {
           if (Array.isArray(idx)) {
-            return idx.map((i) => obj[Number(i)] ?? "").join("");
+            return idx.map((i) => obj[Number(i)] ?? '').join('');
           }
           if (typeof idx === 'number') {
             return obj[idx] ?? null;
@@ -95,7 +100,9 @@ class Evaluator {
       // Property is only reached through ObjectExpression above.
       // Reaching it directly is a parser bug; we guard anyway.
       case 'Property':
-        throw new RuntimeError('Property node should not be evaluated directly');
+        throw new RuntimeError(
+          'Property node should not be evaluated directly',
+        );
 
       // ─────────────────────────────────────────────────────────────────────
       // Functions & calls
@@ -125,7 +132,9 @@ class Evaluator {
         const callee = this.eval(node.callee, env);
         if (typeof callee !== 'function') {
           throw new RuntimeError(
-            `Value is not callable (type: ${Array.isArray(callee) ? 'array' : typeof callee})`,
+            `Value is not callable (type: ${
+              Array.isArray(callee) ? 'array' : typeof callee
+            })`,
           );
         }
         const args = node.arguments.map((arg) => this.eval(arg, env));
@@ -139,7 +148,9 @@ class Evaluator {
       case 'MapExpression': {
         const src = this.eval(node.source, env);
         if (!Array.isArray(src)) {
-          throw new RuntimeError(`map: source must be an array, got ${typeof src}`);
+          throw new RuntimeError(
+            `map: source must be an array, got ${typeof src}`,
+          );
         }
         const arr = src as Value[];
         if (node.lambda.type === 'ArrowFunction') {
@@ -156,7 +167,9 @@ class Evaluator {
       case 'FilterExpression': {
         const src = this.eval(node.source, env);
         if (!Array.isArray(src)) {
-          throw new RuntimeError(`filter: source must be an array, got ${typeof src}`);
+          throw new RuntimeError(
+            `filter: source must be an array, got ${typeof src}`,
+          );
         }
         const arr = src as Value[];
         if (node.lambda.type === 'ArrowFunction') {
@@ -173,7 +186,9 @@ class Evaluator {
       case 'ReduceExpression': {
         const src = this.eval(node.source, env);
         if (!Array.isArray(src)) {
-          throw new RuntimeError(`reduce: source must be an array, got ${typeof src}`);
+          throw new RuntimeError(
+            `reduce: source must be an array, got ${typeof src}`,
+          );
         }
         const arr = src as Value[];
         if (arr.length === 0) return null;
@@ -196,6 +211,32 @@ class Evaluator {
         }
       }
 
+      case 'InfixFunctionExpression': {
+        const src = this.eval(node.source, env);
+        const fnValue = env.get(node.name);
+        if (typeof fnValue !== 'function') {
+          throw new RuntimeError(`${node.name}: is not a function`);
+        }
+
+        let lambda: DWFunction;
+        if (node.lambda.type === 'ArrowFunction') {
+          lambda = this.eval(node.lambda, env) as DWFunction;
+        } else {
+          // Shorthand form: `payload groupBy $.category` — $ is the value,
+          // $$ is the index (arrays) or key (objects).
+          const lambdaNode = node.lambda;
+          lambda = (...args: Value[]): Value => {
+            const extended = env.extend({
+              $: args[0] ?? null,
+              $$: args[1] ?? null,
+            });
+            return this.eval(lambdaNode, extended);
+          };
+        }
+
+        return (fnValue as DWFunction)(src, lambda);
+      }
+
       // ─────────────────────────────────────────────────────────────────────
       // Operators
       // ─────────────────────────────────────────────────────────────────────
@@ -209,9 +250,14 @@ class Evaluator {
       case 'UnaryExpression': {
         const operand = this.eval(node.operand, env);
         switch (node.operator) {
-          case 'not': return !operand;
-          case '-':   return -(operand as number);
-          default: throw new RuntimeError(`Unknown unary operator: "${node.operator}"`);
+          case 'not':
+            return !operand;
+          case '-':
+            return -(operand as number);
+          default:
+            throw new RuntimeError(
+              `Unknown unary operator: "${node.operator}"`,
+            );
         }
       }
 
@@ -234,7 +280,9 @@ class Evaluator {
         const left = this.eval(node.left, env);
         const right = this.eval(node.right, env);
         if (typeof right !== 'function') {
-          throw new RuntimeError(`|>: right side must be a function, got ${typeof right}`);
+          throw new RuntimeError(
+            `|>: right side must be a function, got ${typeof right}`,
+          );
         }
         return (right as DWFunction)(left);
       }
@@ -294,7 +342,9 @@ class Evaluator {
           } else if (decl.type === 'FunctionDeclaration') {
             const fn: DWFunction = (...args: Value[]): Value => {
               const bindings: Record<string, Value> = {};
-              decl.params.forEach((p, i) => { bindings[p.name] = args[i] ?? null; });
+              decl.params.forEach((p, i) => {
+                bindings[p.name] = args[i] ?? null;
+              });
               return this.eval(decl.body, doEnv.extend(bindings));
             };
             doEnv.set(decl.name, fn);
@@ -315,8 +365,8 @@ class Evaluator {
           // For capture patterns, the binding is always available in guard + body
           const captureBindings: Record<string, Value> =
             arm.pattern.kind === 'capture'
-              ? { '$': subject, [arm.pattern.name]: subject }
-              : { '$': subject };
+              ? { $: subject, [arm.pattern.name]: subject }
+              : { $: subject };
 
           if (arm.pattern.kind === 'literal') {
             const patternVal = this.eval(arm.pattern.value, env);
@@ -325,13 +375,28 @@ class Evaluator {
             matched = true; // capture always matches; guard narrows
           } else if (arm.pattern.kind === 'type') {
             switch (arm.pattern.typeName) {
-              case 'String':  matched = typeof subject === 'string'; break;
-              case 'Number':  matched = typeof subject === 'number'; break;
-              case 'Boolean': matched = typeof subject === 'boolean'; break;
-              case 'Array':   matched = Array.isArray(subject); break;
-              case 'Object':  matched = subject !== null && typeof subject === 'object' && !Array.isArray(subject); break;
-              case 'Null':    matched = subject === null; break;
-              default:        matched = false;
+              case 'String':
+                matched = typeof subject === 'string';
+                break;
+              case 'Number':
+                matched = typeof subject === 'number';
+                break;
+              case 'Boolean':
+                matched = typeof subject === 'boolean';
+                break;
+              case 'Array':
+                matched = Array.isArray(subject);
+                break;
+              case 'Object':
+                matched = subject !== null &&
+                  typeof subject === 'object' &&
+                  !Array.isArray(subject);
+                break;
+              case 'Null':
+                matched = subject === null;
+                break;
+              default:
+                matched = false;
             }
           }
 
@@ -345,7 +410,7 @@ class Evaluator {
         }
 
         // No case matched — evaluate else body
-        return this.eval(node.elseBody, env.extend({ '$': subject }));
+        return this.eval(node.elseBody, env.extend({ $: subject }));
       }
     }
   }
@@ -403,26 +468,36 @@ class Evaluator {
           if (right !== null && typeof right === 'object') {
             return { ...(left as DWObject), ...(right as DWObject) };
           }
-          throw new RuntimeError(`Cannot concatenate object with ${typeof right}`);
+          throw new RuntimeError(
+            `Cannot concatenate object with ${typeof right}`,
+          );
         }
         return String(left) + String(right);
-      case '-': return (left as number) - (right as number);
-      case '*': return (left as number) * (right as number);
+      case '-':
+        return (left as number) - (right as number);
+      case '*':
+        return (left as number) * (right as number);
       case '/': {
         if ((right as number) === 0) throw new RuntimeError('Division by zero');
         return (left as number) / (right as number);
       }
 
       // Equality (uses ===)
-      case '==': return left === right;
-      case '!=': return left !== right;
+      case '==':
+        return left === right;
+      case '!=':
+        return left !== right;
 
       // Comparison
-      case '<':  return (left as number) < (right as number);
-      case '<=': return (left as number) <= (right as number);
-      case '>':  return (left as number) > (right as number);
-      case '>=': return (left as number) >= (right as number);
-      
+      case '<':
+        return (left as number) < (right as number);
+      case '<=':
+        return (left as number) <= (right as number);
+      case '>':
+        return (left as number) > (right as number);
+      case '>=':
+        return (left as number) >= (right as number);
+
       // Range operator
       case 'to': {
         const start = Number(left);
@@ -442,8 +517,10 @@ class Evaluator {
 
       // Logical (short-circuit NOT implemented at AST level, so both sides
       // are already evaluated — acceptable trade-off for Phase 3)
-      case 'and': return Boolean(left) && Boolean(right);
-      case 'or':  return Boolean(left) || Boolean(right);
+      case 'and':
+        return Boolean(left) && Boolean(right);
+      case 'or':
+        return Boolean(left) || Boolean(right);
 
       default:
         throw new RuntimeError(`Unknown binary operator: "${op}"`);

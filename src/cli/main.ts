@@ -6,7 +6,7 @@
  *   deno run --allow-read src/cli/main.ts --help
  */
 
-import { parseArgs, detectFormat, HELP_TEXT, VERSION } from './args.ts';
+import { detectFormat, HELP_TEXT, parseArgs, VERSION } from './args.ts';
 import { evaluate } from '../evaluator/evaluator.ts';
 import { parse, serialize } from '../adapters/index.ts';
 import type { Format } from '../adapters/index.ts';
@@ -39,7 +39,9 @@ async function main(): Promise<void> {
   }
 
   if (!expression) {
-    die('No expression provided. Use --expr "<dsl>" or --script <file>.\nRun with --help for usage.');
+    die(
+      'No expression provided. Use --expr "<dsl>" or --script <file>.\nRun with --help for usage.',
+    );
   }
 
   // ── Read input data ────────────────────────────────────────────────────────
@@ -66,13 +68,17 @@ async function main(): Promise<void> {
   try {
     payload = parse(rawInput!, inFmt, { delimiter: args.delimiter });
   } catch (e) {
-    die(`Failed to parse ${inFmt.toUpperCase()} input: ${(e as Error).message}`);
+    die(
+      `Failed to parse ${inFmt.toUpperCase()} input: ${(e as Error).message}`,
+    );
   }
 
   // ── Evaluate DSL ───────────────────────────────────────────────────────────
   let result: unknown;
   try {
-    result = evaluate(expression!, { payload: payload as import('../evaluator/environment.ts').Value });
+    result = evaluate(expression!, {
+      payload: payload as import('../evaluator/environment.ts').Value,
+    });
   } catch (e) {
     die(`Evaluation error: ${(e as Error).message}`);
   }
@@ -87,7 +93,11 @@ async function main(): Promise<void> {
       { indent: args.pretty ? args.indent : 0, delimiter: args.delimiter },
     );
   } catch (e) {
-    die(`Failed to serialize ${outFmt.toUpperCase()} output: ${(e as Error).message}`);
+    die(
+      `Failed to serialize ${outFmt.toUpperCase()} output: ${
+        (e as Error).message
+      }`,
+    );
   }
 
   console.log(output!);

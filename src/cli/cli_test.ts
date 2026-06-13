@@ -1,5 +1,5 @@
 import { assertEquals } from '@std/assert';
-import { parseArgs, detectFormat } from './args.ts';
+import { detectFormat, parseArgs } from './args.ts';
 
 // ── parseArgs ─────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,12 @@ Deno.test('CLI args: --input and --expr', () => {
 });
 
 Deno.test('CLI args: -i and -e short flags', () => {
-  const args = parseArgs(['-i', 'data.csv', '-e', 'payload map ((r) -> r.name)']);
+  const args = parseArgs([
+    '-i',
+    'data.csv',
+    '-e',
+    'payload map ((r) -> r.name)',
+  ]);
   assertEquals(args.input, 'data.csv');
   assertEquals(args.expr, 'payload map ((r) -> r.name)');
 });

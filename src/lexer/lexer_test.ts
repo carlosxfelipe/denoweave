@@ -153,7 +153,10 @@ Deno.test('Lexer: punctuation ( ) { } [ ] , : ;', () => {
 // ── Comments ─────────────────────────────────────────────────────────────────
 
 Deno.test('Lexer: single-line comment is ignored', () => {
-  assertEquals(types('// this is a comment\n42'), [TokenType.NUMBER, TokenType.EOF]);
+  assertEquals(types('// this is a comment\n42'), [
+    TokenType.NUMBER,
+    TokenType.EOF,
+  ]);
 });
 
 Deno.test('Lexer: multi-line comment is ignored', () => {
@@ -176,19 +179,19 @@ Deno.test('Lexer: payload.users map ((u) -> u.name)', () => {
   const src = 'payload.users map ((u) -> u.name)';
   const toks = new Lexer(src).tokenize();
   const expectedTypes = [
-    TokenType.IDENT,    // payload
-    TokenType.DOT,      // .
-    TokenType.IDENT,    // users
-    TokenType.MAP,      // map
-    TokenType.LPAREN,   // (
-    TokenType.LPAREN,   // (
-    TokenType.IDENT,    // u
-    TokenType.RPAREN,   // )
-    TokenType.ARROW,    // ->
-    TokenType.IDENT,    // u
-    TokenType.DOT,      // .
-    TokenType.IDENT,    // name
-    TokenType.RPAREN,   // )
+    TokenType.IDENT, // payload
+    TokenType.DOT, // .
+    TokenType.IDENT, // users
+    TokenType.MAP, // map
+    TokenType.LPAREN, // (
+    TokenType.LPAREN, // (
+    TokenType.IDENT, // u
+    TokenType.RPAREN, // )
+    TokenType.ARROW, // ->
+    TokenType.IDENT, // u
+    TokenType.DOT, // .
+    TokenType.IDENT, // name
+    TokenType.RPAREN, // )
     TokenType.EOF,
   ];
   assertEquals(toks.map((t) => t.type), expectedTypes);
@@ -225,6 +228,6 @@ Deno.test('Lexer: new tokens %, ---, default, as, var, fun, type, $, $$', () => 
     TokenType.TYPE,
     TokenType.DOLLAR,
     TokenType.DOUBLE_DOLLAR,
-    TokenType.EOF
+    TokenType.EOF,
   ]);
 });

@@ -21,7 +21,9 @@ class XmlParser {
   private src: string;
   private pos: number = 0;
 
-  constructor(src: string) { this.src = src; }
+  constructor(src: string) {
+    this.src = src;
+  }
 
   parse(): XmlElement {
     this.skipProlog();
@@ -53,10 +55,17 @@ class XmlParser {
     this.consume('>');
 
     const { text, children } = this.readContent(tag);
-    return { _tag: tag, _attrs: attrs, _text: text.trim(), _children: children };
+    return {
+      _tag: tag,
+      _attrs: attrs,
+      _text: text.trim(),
+      _children: children,
+    };
   }
 
-  private readContent(parentTag: string): { text: string; children: XmlElement[] } {
+  private readContent(
+    parentTag: string,
+  ): { text: string; children: XmlElement[] } {
     let text = '';
     const children: XmlElement[] = [];
 
@@ -86,7 +95,10 @@ class XmlParser {
   private readAttributes(): Record<string, string> {
     const attrs: Record<string, string> = {};
     this.skipWhitespace();
-    while (this.pos < this.src.length && this.src[this.pos] !== '>' && this.src[this.pos] !== '/') {
+    while (
+      this.pos < this.src.length && this.src[this.pos] !== '>' &&
+      this.src[this.pos] !== '/'
+    ) {
       const name = this.readName();
       this.skipWhitespace();
       if (this.src[this.pos] === '=') {
@@ -106,17 +118,25 @@ class XmlParser {
 
   private readName(): string {
     const start = this.pos;
-    while (this.pos < this.src.length && /[\w\-:.]/i.test(this.src[this.pos])) this.pos++;
+    while (this.pos < this.src.length && /[\w\-:.]/i.test(this.src[this.pos])) {
+      this.pos++;
+    }
     return this.src.substring(start, this.pos);
   }
 
   private skipWhitespace(): void {
-    while (this.pos < this.src.length && /\s/.test(this.src[this.pos])) this.pos++;
+    while (this.pos < this.src.length && /\s/.test(this.src[this.pos])) {
+      this.pos++;
+    }
   }
 
   private consume(char: string): void {
     if (this.src[this.pos] !== char) {
-      throw new Error(`XML parse error: expected '${char}' at pos ${this.pos}, got '${this.src[this.pos]}'`);
+      throw new Error(
+        `XML parse error: expected '${char}' at pos ${this.pos}, got '${
+          this.src[this.pos]
+        }'`,
+      );
     }
     this.pos++;
   }
@@ -137,14 +157,18 @@ export function toXML(value: Value, indent: number = 2): string {
   if (Array.isArray(value)) {
     const lines = (value as Value[]).map((v, i) =>
       toXML(v, indent).replace('<root>', `<item index="${i}">`)
-                      .replace('</root>', '</item>')
+        .replace('</root>', '</item>')
     );
     return `<items>\n${lines.join('\n')}\n</items>`;
   }
   return `<value>${escapeXml(String(value))}</value>`;
 }
 
-function serializeElement(el: XmlElement, depth: number, indent: number): string {
+function serializeElement(
+  el: XmlElement,
+  depth: number,
+  indent: number,
+): string {
   const pad = ' '.repeat(depth * indent);
   const attrStr = Object.entries(el._attrs)
     .map(([k, v]) => ` ${k}="${escapeXml(v)}"`)
@@ -167,7 +191,12 @@ function serializeElement(el: XmlElement, depth: number, indent: number): string
   return `${open}\n${inner}\n${pad}${close}`;
 }
 
-function serializePlain(tag: string, obj: DWObject, depth: number, indent: number): string {
+function serializePlain(
+  tag: string,
+  obj: DWObject,
+  depth: number,
+  indent: number,
+): string {
   const pad = ' '.repeat(depth * indent);
   const inner = Object.entries(obj).map(([k, v]) => {
     if (v && typeof v === 'object' && !Array.isArray(v)) {
@@ -177,7 +206,9 @@ function serializePlain(tag: string, obj: DWObject, depth: number, indent: numbe
       return (v as Value[]).map((item, i) =>
         typeof item === 'object' && !Array.isArray(item) && item !== null
           ? serializePlain(k, item as DWObject, depth + 1, indent)
-          : `${' '.repeat((depth + 1) * indent)}<${k} index="${i}">${escapeXml(String(item))}</${k}>`
+          : `${' '.repeat((depth + 1) * indent)}<${k} index="${i}">${
+            escapeXml(String(item))
+          }</${k}>`
       ).join('\n');
     }
     const childPad = ' '.repeat((depth + 1) * indent);

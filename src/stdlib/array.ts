@@ -2,7 +2,9 @@ import type { DWFunction, DWObject, Value } from '../evaluator/environment.ts';
 
 /** Helper: assert Value is an array */
 function asArray(fn: string, v: Value): Value[] {
-  if (!Array.isArray(v)) throw new TypeError(`${fn}: expected array, got ${typeof v}`);
+  if (!Array.isArray(v)) {
+    throw new TypeError(`${fn}: expected array, got ${typeof v}`);
+  }
   return v as Value[];
 }
 
@@ -49,8 +51,8 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     const a = asArray('groupBy', arr);
     const f = asFunc('groupBy', fn);
     const groups: DWObject = {};
-    for (const item of a) {
-      const key = String(f(item));
+    for (const [i, item] of a.entries()) {
+      const key = String(f(item, i));
       if (!groups[key]) groups[key] = [];
       (groups[key] as Value[]).push(item);
     }
@@ -62,7 +64,11 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     const f = asFunc('orderBy', fn);
     const desc = dir === 'desc' || dir === 'DESC';
     return [...a].sort((x, y) => {
-      const kx = f(x) ?? null; const ky = f(y) ?? null;
+      const kx = f(x) ?? null;
+      const ky = f(y) ?? null;
+      if (typeof kx === 'number' && typeof ky === 'number') {
+        return desc ? ky - kx : kx - ky;
+      }
       const sx = kx === null ? '' : String(kx);
       const sy = ky === null ? '' : String(ky);
       if (sx < sy) return desc ? 1 : -1;
@@ -75,8 +81,8 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     const a = asArray('distinctBy', arr);
     const f = asFunc('distinctBy', fn);
     const seen = new Set<string>();
-    return a.filter((item) => {
-      const key = JSON.stringify(f(item));
+    return a.filter((item, i) => {
+      const key = JSON.stringify(f(item, i));
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -103,11 +109,13 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     return a[a.length - 1] ?? null;
   }) as DWFunction,
 
-  take: ((arr: Value, n: Value): Value =>
-    (asArray('take', arr)).slice(0, Number(n))) as DWFunction,
+  take:
+    ((arr: Value, n: Value): Value =>
+      asArray('take', arr).slice(0, Number(n))) as DWFunction,
 
-  drop: ((arr: Value, n: Value): Value =>
-    (asArray('drop', arr)).slice(Number(n))) as DWFunction,
+  drop:
+    ((arr: Value, n: Value): Value =>
+      asArray('drop', arr).slice(Number(n))) as DWFunction,
 
   chunk: ((arr: Value, size: Value): Value => {
     const a = asArray('chunk', arr);
@@ -117,10 +125,15 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     return result;
   }) as DWFunction,
 
-  reverse: ((arr: Value): Value => [...asArray('reverse', arr)].reverse()) as DWFunction,
+  reverse:
+    ((arr: Value): Value =>
+      [...asArray('reverse', arr)].reverse()) as DWFunction,
 
-  flatten: ((arr: Value): Value =>
-    Array.isArray(arr) ? (arr as Value[]).flat() as Value[] : arr) as DWFunction,
+  flatten:
+    ((arr: Value): Value =>
+      Array.isArray(arr)
+        ? ((arr as Value[]).flat() as Value[])
+        : arr) as DWFunction,
 
   zip: ((a: Value, b: Value): Value => {
     const arr1 = asArray('zip', a);
@@ -145,12 +158,18 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
 
   // ── Aggregates ──────────────────────────────────────────────────────────
   sum: ((arr: Value): Value =>
-    asArray('sum', arr).reduce((a, b) => (a as number) + (b as number), 0)) as DWFunction,
+    asArray('sum', arr).reduce(
+      (a, b) => (a as number) + (b as number),
+      0,
+    )) as DWFunction,
 
   avg: ((arr: Value): Value => {
     const a = asArray('avg', arr);
     if (a.length === 0) return null;
-    const total = a.reduce((s, n) => (s as number) + (n as number), 0) as number;
+    const total = a.reduce(
+      (s, n) => (s as number) + (n as number),
+      0,
+    ) as number;
     return total / a.length;
   }) as DWFunction,
 

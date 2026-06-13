@@ -27,7 +27,10 @@ Deno.test('Stdlib: startsWith / endsWith', () => {
 });
 
 Deno.test('Stdlib: replace', () => {
-  assertEquals(evaluate('replace("hello world", "world", "Deno")'), 'hello Deno');
+  assertEquals(
+    evaluate('replace("hello world", "world", "Deno")'),
+    'hello Deno',
+  );
 });
 
 Deno.test('Stdlib: split / join', () => {
@@ -49,7 +52,10 @@ Deno.test('Stdlib: repeat / padLeft / padRight', () => {
 Deno.test('Stdlib: toString / toNumber via evaluator', () => {
   // These are stdlib names but clash with JS builtins as token values.
   // We test them indirectly via the evaluate context injection.
-  assertEquals(evaluate('asStr(42)', { asStr: (v: unknown) => String(v) }), '42');
+  assertEquals(
+    evaluate('asStr(42)', { asStr: (v: unknown) => String(v) }),
+    '42',
+  );
   // toNumber is callable — it's registered as 'toNumber' which is an IDENT
   assertEquals(evaluate('toNumber("3.14")'), 3.14);
 });
@@ -102,30 +108,33 @@ Deno.test('Stdlib: map/filter/reduce as function-call style', () => {
 Deno.test('Stdlib: groupBy', () => {
   const result = evaluate(
     'groupBy(items, (x) -> x.type)',
-    { items: [{ type: 'a', v: 1 }, { type: 'b', v: 2 }, { type: 'a', v: 3 }] }
+    { items: [{ type: 'a', v: 1 }, { type: 'b', v: 2 }, { type: 'a', v: 3 }] },
   );
-  assertEquals((result as Record<string, unknown>)['a'], [{ type: 'a', v: 1 }, { type: 'a', v: 3 }]);
+  assertEquals((result as Record<string, unknown>)['a'], [{ type: 'a', v: 1 }, {
+    type: 'a',
+    v: 3,
+  }]);
   assertEquals((result as Record<string, unknown>)['b'], [{ type: 'b', v: 2 }]);
 });
 
 Deno.test('Stdlib: orderBy (asc)', () => {
   assertEquals(
     evaluate('orderBy([3,1,2], (n) -> n)'),
-    [1, 2, 3]
+    [1, 2, 3],
   );
 });
 
 Deno.test('Stdlib: orderBy (desc)', () => {
   assertEquals(
     evaluate('orderBy([3,1,2], (n) -> n, "desc")'),
-    [3, 2, 1]
+    [3, 2, 1],
   );
 });
 
 Deno.test('Stdlib: distinctBy', () => {
   const result = evaluate(
     'distinctBy(items, (x) -> x.id)',
-    { items: [{ id: 1, v: 'a' }, { id: 2, v: 'b' }, { id: 1, v: 'c' }] }
+    { items: [{ id: 1, v: 'a' }, { id: 2, v: 'b' }, { id: 1, v: 'c' }] },
   );
   assertEquals((result as unknown[]).length, 2);
 });
@@ -133,11 +142,11 @@ Deno.test('Stdlib: distinctBy', () => {
 Deno.test('Stdlib: pluck', () => {
   assertEquals(
     evaluate('pluck({ a: 1, b: 2 }, (v, k) -> k)'),
-    ['a', 'b']
+    ['a', 'b'],
   );
   assertEquals(
     evaluate('pluck({ a: 1, b: 2 }, (v, k) -> v)'),
-    [1, 2]
+    [1, 2],
   );
 });
 
@@ -164,7 +173,10 @@ Deno.test('Stdlib: flatten', () => {
 });
 
 Deno.test('Stdlib: zip', () => {
-  assertEquals(evaluate('zip([1,2,3], ["a","b","c"])'), [[1, 'a'], [2, 'b'], [3, 'c']]);
+  assertEquals(evaluate('zip([1,2,3], ["a","b","c"])'), [[1, 'a'], [2, 'b'], [
+    3,
+    'c',
+  ]]);
 });
 
 Deno.test('Stdlib: contains (array)', () => {
@@ -185,7 +197,14 @@ Deno.test('Stdlib: sum / avg / min / max', () => {
 });
 
 Deno.test('Stdlib: flatMap', () => {
-  assertEquals(evaluate('flatMap([1,2,3], (n) -> [n, n * 10])'), [1, 10, 2, 20, 3, 30]);
+  assertEquals(evaluate('flatMap([1,2,3], (n) -> [n, n * 10])'), [
+    1,
+    10,
+    2,
+    20,
+    3,
+    30,
+  ]);
 });
 
 // ── Object functions ──────────────────────────────────────────────────────────
@@ -206,8 +225,14 @@ Deno.test('Stdlib: merge', () => {
 });
 
 Deno.test('Stdlib: pick / omit', () => {
-  assertEquals(evaluate('pick(obj, ["a", "b"])', { obj: { a: 1, b: 2, c: 3 } }), { a: 1, b: 2 });
-  assertEquals(evaluate('omit(obj, ["c"])', { obj: { a: 1, b: 2, c: 3 } }), { a: 1, b: 2 });
+  assertEquals(
+    evaluate('pick(obj, ["a", "b"])', { obj: { a: 1, b: 2, c: 3 } }),
+    { a: 1, b: 2 },
+  );
+  assertEquals(evaluate('omit(obj, ["c"])', { obj: { a: 1, b: 2, c: 3 } }), {
+    a: 1,
+    b: 2,
+  });
 });
 
 Deno.test('Stdlib: has', () => {
@@ -218,14 +243,14 @@ Deno.test('Stdlib: has', () => {
 Deno.test('Stdlib: mapObject', () => {
   assertEquals(
     evaluate('mapObject({ a: 1, b: 2 }, (v) -> v * 10)'),
-    { a: 10, b: 20 }
+    { a: 10, b: 20 },
   );
 });
 
 Deno.test('Stdlib: filterObject', () => {
   assertEquals(
     evaluate('filterObject({ a: 1, b: 2, c: 3 }, (v) -> v > 1)'),
-    { b: 2, c: 3 }
+    { b: 2, c: 3 },
   );
 });
 

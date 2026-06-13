@@ -21,6 +21,7 @@ export type NodeType =
   | 'MapExpression'
   | 'FilterExpression'
   | 'ReduceExpression'
+  | 'InfixFunctionExpression'
   | 'BinaryExpression'
   | 'UnaryExpression'
   | 'IfExpression'
@@ -141,6 +142,20 @@ export interface ReduceExpression extends BaseNode {
   lambda: Expression; // Can be ArrowFunction or a shorthand expression containing $
 }
 
+/**
+ * `source <fn> lambda` — generic infix application of a stdlib higher-order
+ * function, DataWeave style: `payload groupBy $.category`,
+ * `payload orderBy $.age`, `obj mapObject ((v, k) -> ...)`, etc.
+ *
+ * The function is resolved by name at runtime (stdlib or user-defined).
+ */
+export interface InfixFunctionExpression extends BaseNode {
+  type: 'InfixFunctionExpression';
+  name: string;
+  source: Expression;
+  lambda: Expression; // Can be ArrowFunction or a shorthand expression containing $ / $$
+}
+
 // ── Operators ────────────────────────────────────────────────────────────────
 
 /**
@@ -220,9 +235,9 @@ export interface DoExpression extends BaseNode {
 
 /** Pattern inside a `case` clause */
 export type MatchPattern =
-  | { kind: 'literal';  value: Expression }
-  | { kind: 'type';     typeName: string }
-  | { kind: 'capture';  name: string }       // `case q if q > 0` — binds the value to `q`
+  | { kind: 'literal'; value: Expression }
+  | { kind: 'type'; typeName: string }
+  | { kind: 'capture'; name: string } // `case q if q > 0` — binds the value to `q`
   | { kind: 'else' };
 
 /** A single `case pattern (if guard)? -> body` arm */
@@ -268,7 +283,10 @@ export interface TypeDeclaration extends BaseNode {
   definition: string; // Stored raw representation of type for now
 }
 
-export type Declaration = VariableDeclaration | FunctionDeclaration | TypeDeclaration;
+export type Declaration =
+  | VariableDeclaration
+  | FunctionDeclaration
+  | TypeDeclaration;
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 
@@ -294,6 +312,7 @@ export type Expression =
   | MapExpression
   | FilterExpression
   | ReduceExpression
+  | InfixFunctionExpression
   | BinaryExpression
   | UnaryExpression
   | IfExpression

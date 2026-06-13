@@ -8,7 +8,7 @@ import { createToken, KEYWORDS, Token, TokenType } from './token.ts';
  */
 export class Lexer {
   private readonly source: string;
-  private pos: number = 0;    // current position (points to current char)
+  private pos: number = 0; // current position (points to current char)
   private line: number = 1;
   private column: number = 1;
 
@@ -59,7 +59,9 @@ export class Lexer {
 
   private readNumber(line: number, col: number): Token {
     let value = '';
-    while (!this.isEOF() && (this.isDigit(this.peek()) || this.peek() === '.')) {
+    while (
+      !this.isEOF() && (this.isDigit(this.peek()) || this.peek() === '.')
+    ) {
       // Avoid consuming a second dot (e.g. `..` operator)
       if (this.peek() === '.' && this.peekAhead(1) === '.') break;
       value += this.advance();
@@ -85,7 +87,9 @@ export class Lexer {
 
   private readIdentOrKeyword(line: number, col: number): Token {
     let value = '';
-    while (!this.isEOF() && (this.isAlphaNumeric(this.peek()) || this.peek() === '_')) {
+    while (
+      !this.isEOF() && (this.isAlphaNumeric(this.peek()) || this.peek() === '_')
+    ) {
       value += this.advance();
     }
     const kwType = KEYWORDS[value];
@@ -106,7 +110,8 @@ export class Lexer {
         }
         return this.makeToken(TokenType.DOT, '.', line, col);
       }
-      case '%': return this.makeToken(TokenType.PERCENT, '%', line, col);
+      case '%':
+        return this.makeToken(TokenType.PERCENT, '%', line, col);
       case '-': {
         if (this.peek() === '-' && this.peekAhead(1) === '-') {
           this.advance();
@@ -165,17 +170,28 @@ export class Lexer {
         }
         return this.makeToken(TokenType.PLUS, '+', line, col);
       }
-      case '*': return this.makeToken(TokenType.STAR, '*', line, col);
-      case '/': return this.makeToken(TokenType.SLASH, '/', line, col);
-      case ':': return this.makeToken(TokenType.COLON, ':', line, col);
-      case ',': return this.makeToken(TokenType.COMMA, ',', line, col);
-      case ';': return this.makeToken(TokenType.SEMICOLON, ';', line, col);
-      case '(': return this.makeToken(TokenType.LPAREN, '(', line, col);
-      case ')': return this.makeToken(TokenType.RPAREN, ')', line, col);
-      case '{': return this.makeToken(TokenType.LBRACE, '{', line, col);
-      case '}': return this.makeToken(TokenType.RBRACE, '}', line, col);
-      case '[': return this.makeToken(TokenType.LBRACKET, '[', line, col);
-      case ']': return this.makeToken(TokenType.RBRACKET, ']', line, col);
+      case '*':
+        return this.makeToken(TokenType.STAR, '*', line, col);
+      case '/':
+        return this.makeToken(TokenType.SLASH, '/', line, col);
+      case ':':
+        return this.makeToken(TokenType.COLON, ':', line, col);
+      case ',':
+        return this.makeToken(TokenType.COMMA, ',', line, col);
+      case ';':
+        return this.makeToken(TokenType.SEMICOLON, ';', line, col);
+      case '(':
+        return this.makeToken(TokenType.LPAREN, '(', line, col);
+      case ')':
+        return this.makeToken(TokenType.RPAREN, ')', line, col);
+      case '{':
+        return this.makeToken(TokenType.LBRACE, '{', line, col);
+      case '}':
+        return this.makeToken(TokenType.RBRACE, '}', line, col);
+      case '[':
+        return this.makeToken(TokenType.LBRACKET, '[', line, col);
+      case ']':
+        return this.makeToken(TokenType.RBRACKET, ']', line, col);
       default:
         return this.makeToken(TokenType.ILLEGAL, ch, line, col);
     }
@@ -197,13 +213,18 @@ export class Lexer {
         while (!this.isEOF() && this.peek() !== '\n') this.advance();
       } else if (ch === '/' && this.peekAhead(1) === '*') {
         // Multi-line comment
-        this.advance(); this.advance(); // skip /*
+        this.advance();
+        this.advance(); // skip /*
         while (!this.isEOF()) {
           if (this.peek() === '*' && this.peekAhead(1) === '/') {
-            this.advance(); this.advance(); // skip */
+            this.advance();
+            this.advance(); // skip */
             break;
           }
-          if (this.peek() === '\n') { this.line++; this.column = 1; }
+          if (this.peek() === '\n') {
+            this.line++;
+            this.column = 1;
+          }
           this.advance();
         }
       } else {
@@ -237,7 +258,8 @@ export class Lexer {
   }
 
   private isAlpha(ch: string): boolean {
-    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' || ch === '$';
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_' ||
+      ch === '$';
   }
 
   private isAlphaNumeric(ch: string): boolean {
@@ -246,17 +268,29 @@ export class Lexer {
 
   private unescape(ch: string): string {
     switch (ch) {
-      case 'n': return '\n';
-      case 't': return '\t';
-      case 'r': return '\r';
-      case '"': return '"';
-      case "'": return "'";
-      case '\\': return '\\';
-      default: return ch;
+      case 'n':
+        return '\n';
+      case 't':
+        return '\t';
+      case 'r':
+        return '\r';
+      case '"':
+        return '"';
+      case "'":
+        return "'";
+      case '\\':
+        return '\\';
+      default:
+        return ch;
     }
   }
 
-  private makeToken(type: TokenType, value: string, line: number, column: number): Token {
+  private makeToken(
+    type: TokenType,
+    value: string,
+    line: number,
+    column: number,
+  ): Token {
     return createToken(type, value, line, column);
   }
 }

@@ -20,7 +20,11 @@ const tokens = new Lexer(src).tokenize();
 console.log('Tokens:');
 for (const tok of tokens) {
   if (tok.type !== 'EOF') {
-    console.log(`  [${String(tok.line).padStart(2)}:${String(tok.column).padStart(2)}]  ${tok.type.padEnd(14)} "${tok.value}"`);
+    console.log(
+      `  [${String(tok.line).padStart(2)}:${String(tok.column).padStart(2)}]  ${
+        tok.type.padEnd(14)
+      } "${tok.value}"`,
+    );
   }
 }
 console.log('\n✓ Lexer phase complete.');
