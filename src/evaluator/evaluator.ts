@@ -86,10 +86,32 @@ class Evaluator {
       case 'ObjectExpression': {
         const result: DWObject = {};
         for (const prop of node.properties) {
-          const key = prop.key.type === 'Identifier'
-            ? prop.key.name
-            : String(prop.key.value);
-          result[key] = this.eval(prop.value, env);
+          if (prop.type === 'Property') {
+            let key: string;
+            if (prop.key.type === 'Identifier') {
+              key = prop.key.name;
+            } else if (prop.key.type === 'Literal') {
+              key = String(prop.key.value);
+            } else {
+              key = String(this.eval(prop.key, env));
+            }
+            this.addProperty(result, key, this.eval(prop.value, env));
+          } else if (prop.type === 'DynamicExpansion') {
+            const val = this.eval(prop.expression, env);
+            if (Array.isArray(val)) {
+              for (const item of val) {
+                if (item && typeof item === 'object' && !Array.isArray(item)) {
+                  for (const [k, v] of Object.entries(item as DWObject)) {
+                    this.addProperty(result, k, v);
+                  }
+                }
+              }
+            } else if (val && typeof val === 'object') {
+              for (const [k, v] of Object.entries(val as DWObject)) {
+                this.addProperty(result, k, v);
+              }
+            }
+          }
         }
         return result;
       }
@@ -448,6 +470,25 @@ class Evaluator {
     if (typeof obj === 'string' && name === 'length') return obj.length;
 
     return null;
+  }
+
+  // ── Duplicate key helper ──────────────────────────────────────────────────
+
+  /**
+   * Adds a property to a DWObject. If the key already exists, groups the values
+   * into an array to simulate DataWeave's duplicate key support.
+   */
+  private addProperty(obj: DWObject, key: string, value: Value): void {
+    if (key in obj) {
+      const existing = obj[key];
+      if (Array.isArray(existing)) {
+        existing.push(value);
+      } else {
+        obj[key] = [existing, value];
+      }
+    } else {
+      obj[key] = value;
+    }
   }
 
   // ── Binary operator dispatch ──────────────────────────────────────────────

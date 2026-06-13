@@ -29,26 +29,26 @@ fun stockStatus(qty: Number) = qty match {
 
 ---
 {
-    order: {
-        id: payload.order.id default "NO-ID",
-        customer: upper(payload.order.customer default "UNKNOWN"),
-        date: now() as String { format: "yyyy-MM-dd HH:mm:ss" },
-        items: (payload.order.items default []) map (item, index) -> do {
-            var total = calculateTotal(item.qty, item.price)
-            ---
-            {
-                position: index + 1,
-                product: item.name,
-                quantity: item.qty,
-                status: stockStatus(item.qty),
-                unitPrice: formatCurrency(item.price),
-                totalWithTax: formatCurrency(total)
-            }
-        },
-        validItems: sizeOf((payload.order.items default []) filter ($.qty > 0)),
-        grandTotal: formatCurrency(
-            (payload.order.items default [])
-                reduce ((item, acc = 0) -> acc + calculateTotal(item.qty, item.price))
-        )
-    }
+  order: {
+    id: payload.order.id default "NO-ID",
+    customer: upper(payload.order.customer default "UNKNOWN"),
+    date: now() as String { format: "yyyy-MM-dd HH:mm:ss" },
+    items: (payload.order.items default []) map (item, index) -> do {
+      var total = calculateTotal(item.qty, item.price)
+      ---
+      {
+        position: index + 1,
+        product: item.name,
+        quantity: item.qty,
+        status: stockStatus(item.qty),
+        unitPrice: formatCurrency(item.price),
+        totalWithTax: formatCurrency(total)
+      }
+    },
+    validItems: sizeOf((payload.order.items default []) filter ($.qty > 0)),
+    grandTotal: formatCurrency(
+      (payload.order.items default [])
+        reduce ((item, acc = 0) -> acc + calculateTotal(item.qty, item.price))
+    )
+  }
 }

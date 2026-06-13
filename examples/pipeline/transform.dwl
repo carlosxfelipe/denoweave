@@ -2,12 +2,12 @@
 output application/json
 input payload application/json
 
-// Mapeia os "Posts" da API para um modelo simplificado
+// Maps the API "Posts" to a simplified model
 ---
 payload map (post) -> {
-    recordId: post.id,
-    authorId: post.userId,
-    // Extrai uma versão curta do título limitando a 15 caracteres
-    shortTitle: upper((post.title default "NO TITLE")[0 to 15]),
-    contentLength: sizeOf(post.body default "")
+  recordId: post.id,
+  authorId: post.userId,
+  // Extracts a short version of the title limited to 15 characters
+  shortTitle: upper((post.title default "NO TITLE")[0 to 15]),
+  contentLength: sizeOf(post.body default "")
 }

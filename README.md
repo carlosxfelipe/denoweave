@@ -244,8 +244,8 @@ deno run --allow-net --allow-read examples/pipeline/run.ts
 
 ## Tests
 
-The project includes a suite of 219 automated tests to ensure the correct
-behavior of all components in the transformation engine.
+The project includes a suite of more than 200 automated tests to ensure the
+correct behavior of all components in the transformation engine.
 
 To run the tests:
 

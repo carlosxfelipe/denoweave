@@ -6,20 +6,26 @@ input payload application/csv
 ---
 {
   company: {
-      departments: mapObject(
-          groupBy(payload, (emp) -> emp.department),
-          (employees, deptName) -> {
-              department: {
-                  "@name": deptName,
-                  employees: employees map (emp) -> {
-                            employee: {
-                                "@id": emp.id,
-                                name: emp.name,
-                                salary: emp.salary as Number
-                              }
-                          }
+    departments: {
+      (
+        payload groupBy (emp) -> emp.department
+        pluck ((employees, deptName) -> {
+          department: {
+            "@name": deptName,
+            employees: {
+              (
+                employees map (emp) -> {
+                  employee: {
+                    "@id": emp.id,
+                    name: emp.name,
+                    salary: emp.salary as Number
+                  }
                 }
+              )
             }
-    )
+          }
+        })
+      )
     }
+  }
 }

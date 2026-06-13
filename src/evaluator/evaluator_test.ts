@@ -494,3 +494,30 @@ fun double(n) = n * 2
 double(x)`;
   assertEquals(evaluate(src), 20);
 });
+
+// ── Dynamic Object Expansions & Keys ──────────────────────────────────────────
+
+Deno.test('Evaluator: duplicate keys array-ify', () => {
+  const result = evaluate('{ a: 1, a: 2, a: 3 }');
+  assertEquals(result, { a: [1, 2, 3] });
+});
+
+Deno.test('Evaluator: dynamic key', () => {
+  const result = evaluate('{ ("a" ++ "b"): 1 }');
+  assertEquals(result, { ab: 1 });
+});
+
+Deno.test('Evaluator: dynamic expansion from object', () => {
+  const result = evaluate('{ a: 1, ({ b: 2, c: 3 }) }');
+  assertEquals(result, { a: 1, b: 2, c: 3 });
+});
+
+Deno.test('Evaluator: dynamic expansion from array of objects', () => {
+  const result = evaluate('{ a: 1, ( [{b: 2}, {c: 3}] ) }');
+  assertEquals(result, { a: 1, b: 2, c: 3 });
+});
+
+Deno.test('Evaluator: dynamic expansion with duplicate keys', () => {
+  const result = evaluate('{ ( [{a: 1}, {a: 2}] ) }');
+  assertEquals(result, { a: [1, 2] });
+});

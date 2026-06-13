@@ -59,6 +59,7 @@ const INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
 export class Parser {
   private tokens: Token[];
   private pos: number = 0;
+  private inInfixLambda: boolean = false;
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -567,7 +568,9 @@ export class Parser {
       // Single-param short arrow: `x -> x * 2`
       if (this.check(TokenType.ARROW)) {
         this.advance();
-        const body = this.parseExpression();
+        const body = this.inInfixLambda
+          ? this.parseLogical()
+          : this.parseExpression();
         return {
           type: 'ArrowFunction',
           params: [
@@ -639,7 +642,9 @@ export class Parser {
     if (this.check(TokenType.RPAREN)) {
       this.advance();
       this.expect(TokenType.ARROW);
-      const body = this.parseExpression();
+      const body = this.inInfixLambda
+        ? this.parseLogical()
+        : this.parseExpression();
       return {
         type: 'ArrowFunction',
         params: [],
@@ -658,7 +663,9 @@ export class Parser {
     if (maybeParams !== null && this.check(TokenType.ARROW)) {
       // Confirmed arrow function
       this.advance(); // consume ->
-      const body = this.parseExpression();
+      const body = this.inInfixLambda
+        ? this.parseLogical()
+        : this.parseExpression();
       return {
         type: 'ArrowFunction',
         params: maybeParams,
@@ -668,17 +675,23 @@ export class Parser {
       };
     }
 
-    // Not an arrow function — backtrack and parse as grouped expression
+    // Not an arrow function
+    // Backtrack and parse as grouped expression
     this.pos = savedPos;
+    const prev = this.inInfixLambda;
+    this.inInfixLambda = false;
     const expr = this.parseExpression();
+    this.inInfixLambda = prev;
     this.expect(TokenType.RPAREN);
     return expr;
   }
 
   /**
    * Try to consume `IDENT (, IDENT)* )`.
-   * Returns the param list on success, or null if the pattern doesn't match.
-   * On failure the caller must restore `this.pos` to the saved position.
+   * Returns the param list on success,
+   * or null if the pattern doesn't match.
+   * On failure the caller must restore
+   * `this.pos` to the saved position.
    */
   private tryParseArrowParams(): AST.Identifier[] | null {
     const params: AST.Identifier[] = [];
@@ -756,52 +769,84 @@ export class Parser {
 
   private parseObjectExpression(): AST.ObjectExpression {
     const open = this.expect(TokenType.LBRACE);
-    const properties: AST.Property[] = [];
+    const properties: (AST.Property | AST.DynamicExpansion)[] = [];
 
     while (!this.check(TokenType.RBRACE) && !this.check(TokenType.EOF)) {
       const keyTok = this.peek();
-      let key: AST.Identifier | AST.Literal;
 
-      const isProp = keyTok.type === TokenType.IDENT ||
-        Object.values(KEYWORDS).includes(keyTok.type);
+      if (this.check(TokenType.LPAREN)) {
+        const parenTok = this.advance();
+        const expr = this.parseExpression();
+        this.expect(TokenType.RPAREN);
 
-      if (isProp) {
-        this.advance();
-        key = {
-          type: 'Identifier',
-          name: keyTok.value,
-          line: keyTok.line,
-          column: keyTok.column,
-        };
-      } else if (keyTok.type === TokenType.STRING) {
-        this.advance();
-        key = {
-          type: 'Literal',
-          value: keyTok.value,
-          raw: `"${keyTok.value}"`,
-          line: keyTok.line,
-          column: keyTok.column,
-        };
+        if (this.check(TokenType.COLON)) {
+          this.advance();
+          const value = this.parseExpression();
+          properties.push({
+            type: 'Property',
+            key: expr,
+            value,
+            shorthand: false,
+            line: parenTok.line,
+            column: parenTok.column,
+          });
+        } else {
+          properties.push({
+            type: 'DynamicExpansion',
+            expression: expr,
+            line: parenTok.line,
+            column: parenTok.column,
+          });
+        }
       } else {
-        throw new ParseError(
-          `Expected property key (identifier or string)`,
-          keyTok,
-        );
-      }
+        let key: AST.Identifier | AST.Literal;
 
-      // Shorthand: `{ name }` → `{ name: name }`
-      if (!this.check(TokenType.COLON)) {
-        if (key.type !== 'Identifier') {
+        const isProp = keyTok.type === TokenType.IDENT ||
+          Object.values(KEYWORDS).includes(keyTok.type);
+
+        if (isProp) {
+          this.advance();
+          key = {
+            type: 'Identifier',
+            name: keyTok.value,
+            line: keyTok.line,
+            column: keyTok.column,
+          };
+        } else if (keyTok.type === TokenType.STRING) {
+          this.advance();
+          key = {
+            type: 'Literal',
+            value: keyTok.value,
+            raw: `"${keyTok.value}"`,
+            line: keyTok.line,
+            column: keyTok.column,
+          };
+        } else {
           throw new ParseError(
-            'Shorthand only valid for identifier keys',
+            `Expected property key (identifier or string) or dynamic expansion "("`,
             keyTok,
           );
         }
-        properties.push({ type: 'Property', key, value: key, shorthand: true });
-      } else {
-        this.expect(TokenType.COLON);
-        const value = this.parseExpression();
-        properties.push({ type: 'Property', key, value, shorthand: false });
+
+        // Shorthand: `{ name }` → `{ name: name }`
+        if (!this.check(TokenType.COLON)) {
+          if (key.type !== 'Identifier') {
+            throw new ParseError(
+              'Shorthand only valid for identifier keys',
+              keyTok,
+            );
+          }
+          properties.push({
+            type: 'Property',
+            key,
+            value: key,
+            shorthand: true,
+          });
+        } else {
+          this.expect(TokenType.COLON);
+          const value = this.parseExpression();
+          properties.push({ type: 'Property', key, value, shorthand: false });
+        }
       }
 
       if (this.check(TokenType.COMMA)) this.advance();
@@ -858,7 +903,11 @@ export class Parser {
    * `payload distinctBy $.id groupBy $.category` applies distinctBy first.
    */
   private parseLambda(): AST.Expression {
-    return this.parseLogical();
+    const prev = this.inInfixLambda;
+    this.inInfixLambda = true;
+    const res = this.parseLogical();
+    this.inInfixLambda = prev;
+    return res;
   }
 
   // ── do block ────────────────────────────────────────────────────────────────

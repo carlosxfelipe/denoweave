@@ -33,7 +33,8 @@ export type NodeType =
   | 'AsExpression'
   | 'DoExpression'
   | 'MatchExpression'
-  | 'AnonymousArgExpression';
+  | 'AnonymousArgExpression'
+  | 'DynamicExpansion';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
 
@@ -92,16 +93,22 @@ export interface CallExpression extends BaseNode {
 /** `{ key: value, ... }` */
 export interface ObjectExpression extends BaseNode {
   type: 'ObjectExpression';
-  properties: Property[];
+  properties: (Property | DynamicExpansion)[];
 }
 
 /** A single key:value pair inside an ObjectExpression. */
 export interface Property extends BaseNode {
   type: 'Property';
-  key: Identifier | Literal;
+  key: Identifier | Literal | Expression;
   value: Expression;
   /** Shorthand: `{ name }` equivalent to `{ name: name }` */
   shorthand: boolean;
+}
+
+/** `{ (expr) }` — dynamic object property expansion */
+export interface DynamicExpansion extends BaseNode {
+  type: 'DynamicExpansion';
+  expression: Expression;
 }
 
 /** `[elem1, elem2, ...]` */
@@ -323,4 +330,9 @@ export type Expression =
   | DoExpression
   | MatchExpression;
 
-export type AnyNode = Program | Expression | Declaration | Property;
+export type AnyNode =
+  | Program
+  | Expression
+  | Declaration
+  | Property
+  | DynamicExpansion;

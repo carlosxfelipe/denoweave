@@ -1,6 +1,7 @@
 import { assertEquals, assertThrows } from '@std/assert';
 import { ParseError, Parser } from './parser.ts';
-import type { Expression, Program } from '../ast/nodes.ts';
+import type { Expression } from '../ast/nodes.ts';
+import type * as AST from '../ast/nodes.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,8 +174,10 @@ Deno.test('Parser: object with properties — { name: "Alice", age: 30 }', () =>
   assertEquals(node.type, 'ObjectExpression');
   if (node.type === 'ObjectExpression') {
     assertEquals(node.properties.length, 2);
-    assertEquals((node.properties[0].key as { name: string }).name, 'name');
-    assertEquals(node.properties[1].shorthand, false);
+    const prop1 = node.properties[0] as AST.Property;
+    const prop2 = node.properties[1] as AST.Property;
+    assertEquals((prop1.key as { name: string }).name, 'name');
+    assertEquals(prop2.shorthand, false);
   }
 });
 
@@ -182,7 +185,31 @@ Deno.test('Parser: shorthand property — { name }', () => {
   const node = parse('{ name }');
   assertEquals(node.type, 'ObjectExpression');
   if (node.type === 'ObjectExpression') {
-    assertEquals(node.properties[0].shorthand, true);
+    const prop1 = node.properties[0] as AST.Property;
+    assertEquals(prop1.shorthand, true);
+    assertEquals((prop1.key as { name: string }).name, 'name');
+  }
+});
+
+Deno.test('Parser: dynamic property key — { ("a" ++ "b"): 1 }', () => {
+  const node = parse('{ ("a" ++ "b"): 1 }');
+  assertEquals(node.type, 'ObjectExpression');
+  if (node.type === 'ObjectExpression') {
+    assertEquals(node.properties.length, 1);
+    const prop1 = node.properties[0] as AST.Property;
+    assertEquals(prop1.key.type, 'BinaryExpression');
+  }
+});
+
+Deno.test('Parser: dynamic object expansion — { (items) }', () => {
+  const node = parse('{ (items) }');
+  assertEquals(node.type, 'ObjectExpression');
+  if (node.type === 'ObjectExpression') {
+    assertEquals(node.properties.length, 1);
+    const prop1 = node.properties[0] as AST.DynamicExpansion;
+    assertEquals(prop1.type, 'DynamicExpansion');
+    assertEquals(prop1.expression.type, 'Identifier');
+    assertEquals((prop1.expression as any).name, 'items');
   }
 });
 
