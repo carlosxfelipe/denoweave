@@ -303,6 +303,14 @@ fundamentally from the official MuleSoft DataWeave implementation:
 
 ---
 
+## VS Code Extension
+
+Note that using the official MuleSoft DataWeave extension in VS Code may cause some noise, such as false-positive linting errors and engine incompatibilities. Because of this, I created my own lightweight syntax highlighting extension for DenoWeave:
+
+[DataWeave Syntax Extension](https://github.com/carlosxfelipe/dataweave-syntax-extension)
+
+---
+
 ## Disclaimer
 
 DenoWeave is an independent, open-source project, implemented from scratch in

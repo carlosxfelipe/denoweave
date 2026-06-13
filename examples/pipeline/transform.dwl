@@ -1,6 +1,5 @@
 %dw 2.0
 output application/json
-input payload application/json
 
 // Maps the API "Posts" to a simplified model
 ---

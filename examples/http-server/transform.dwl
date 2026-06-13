@@ -1,9 +1,6 @@
 %dw 2.0
 output application/json
 
-// Optional input declaration for IDE typing
-input payload application/json
-
 ---
 {
   message: "Hello from DenoWeave API!",

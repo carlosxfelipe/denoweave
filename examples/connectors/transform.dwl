@@ -1,6 +1,5 @@
 %dw 2.0
 output application/json
-input payload application/json
 
 // Transforms the large array of complex API objects
 // into a clean, standardized list for our mock "database"

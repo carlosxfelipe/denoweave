@@ -1,6 +1,5 @@
 %dw 2.0
 output application/xml
-input payload application/csv
 
 // Group employees by department and build an XML structure
 ---

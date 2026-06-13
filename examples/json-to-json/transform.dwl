@@ -1,9 +1,5 @@
 %dw 2.0
 output application/json
-// Note: In a real Mule flow, inputs are implicit and their types are defined
-// by the connector/component metadata. We explicitly declare it here for
-// standalone execution and linter support.
-input payload application/json
 
 // Type hints (documentation only — not validated at runtime by Mule 4)
 type Item = { name: String, qty: Number, price: Number }
@@ -48,7 +44,7 @@ fun stockStatus(qty: Number) = qty match {
     validItems: sizeOf((payload.order.items default []) filter ($.qty > 0)),
     grandTotal: formatCurrency(
       (payload.order.items default [])
-        reduce ((item, acc = 0) -> acc + calculateTotal(item.qty, item.price))
+        reduce (item, acc = 0) -> acc + calculateTotal(item.qty, item.price)
     )
   }
 }
