@@ -209,7 +209,7 @@ Deno.test('Parser: dynamic object expansion — { (items) }', () => {
     const prop1 = node.properties[0] as AST.DynamicExpansion;
     assertEquals(prop1.type, 'DynamicExpansion');
     assertEquals(prop1.expression.type, 'Identifier');
-    assertEquals((prop1.expression as any).name, 'items');
+    assertEquals((prop1.expression as AST.Identifier).name, 'items');
   }
 });
 
@@ -298,7 +298,7 @@ Deno.test('Parser: map expression — payload.users map ((u) -> u.name)', () => 
   assertEquals(node.type, 'MapExpression');
   if (node.type === 'MapExpression') {
     assertEquals(node.source.type, 'MemberExpression');
-    const lambda = node.lambda as any;
+    const lambda = node.lambda as AST.ArrowFunction;
     assertEquals(lambda.type, 'ArrowFunction');
     assertEquals(lambda.params.length, 1);
     assertEquals(lambda.params[0].name, 'u');
@@ -310,7 +310,7 @@ Deno.test('Parser: filter expression — users filter ((u) -> u.active)', () => 
   const node = parse('users filter ((u) -> u.active)');
   assertEquals(node.type, 'FilterExpression');
   if (node.type === 'FilterExpression') {
-    assertEquals((node.lambda as any).params[0].name, 'u');
+    assertEquals((node.lambda as AST.ArrowFunction).params[0].name, 'u');
   }
 });
 
@@ -320,7 +320,7 @@ Deno.test(
     const node = parse('nums reduce ((acc, x) -> acc + x)');
     assertEquals(node.type, 'ReduceExpression');
     if (node.type === 'ReduceExpression') {
-      const lambda = node.lambda as any;
+      const lambda = node.lambda as AST.ArrowFunction;
       assertEquals(lambda.params.length, 2);
       assertEquals(lambda.params[0].name, 'acc');
       assertEquals(lambda.params[1].name, 'x');
@@ -343,7 +343,7 @@ Deno.test('Parser: full DataWeave expression', () => {
   // source: payload.users
   assertEquals(node.source.type, 'MemberExpression');
 
-  const lambda = node.lambda as any;
+  const lambda = node.lambda as AST.ArrowFunction;
 
   // lambda params
   assertEquals(lambda.params[0].name, 'u');
@@ -354,14 +354,17 @@ Deno.test('Parser: full DataWeave expression', () => {
 
   const props = lambda.body.properties;
   assertEquals(props.length, 2);
-  assertEquals((props[0].key as { name: string }).name, 'name');
-  assertEquals((props[1].key as { name: string }).name, 'active');
+  const prop0 = props[0] as AST.Property;
+  const prop1 = props[1] as AST.Property;
+
+  assertEquals((prop0.key as AST.Identifier).name, 'name');
+  assertEquals((prop1.key as AST.Identifier).name, 'active');
 
   // name: upper(u.name) — CallExpression
-  assertEquals(props[0].value.type, 'CallExpression');
+  assertEquals(prop0.value.type, 'CallExpression');
 
   // active: u.enabled — MemberExpression
-  assertEquals(props[1].value.type, 'MemberExpression');
+  assertEquals(prop1.value.type, 'MemberExpression');
 });
 
 // ── Error handling ────────────────────────────────────────────────────────────

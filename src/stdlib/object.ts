@@ -83,7 +83,7 @@ export const OBJECT_FUNCTIONS: Record<string, Value> = {
     const f = fn as DWFunction;
     const result: DWObject = {};
     for (const [k, v] of Object.entries(obj as DWObject)) {
-      if (Boolean(f(v, k))) result[k] = v;
+      if (f(v, k)) result[k] = v;
     }
     return result;
   }) as DWFunction,

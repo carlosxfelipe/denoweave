@@ -75,6 +75,19 @@ Deno.test('Stdlib: sqrt / pow / mod', () => {
   assertEquals(evaluate('mod(10, 3)'), 1);
 });
 
+Deno.test('Stdlib: randomInt', () => {
+  const r = evaluate('randomInt(10)') as number;
+  assertEquals(Number.isInteger(r), true);
+  assertEquals(r >= 0 && r < 10, true);
+});
+
+Deno.test('Stdlib: isDecimal / isInteger', () => {
+  assertEquals(evaluate('isDecimal(3.14)'), true);
+  assertEquals(evaluate('isDecimal(3)'), false);
+  assertEquals(evaluate('isInteger(42)'), true);
+  assertEquals(evaluate('isInteger(42.5)'), false);
+});
+
 Deno.test('Stdlib: typeOf', () => {
   assertEquals(evaluate('typeOf(42)'), 'number');
   assertEquals(evaluate('typeOf("hi")'), 'string');
@@ -272,4 +285,79 @@ Deno.test('Stdlib: readUrl', async () => {
   const result = evaluate(`readUrl("${path}", "application/json")`);
   assertEquals(result !== null && typeof result === 'object', true);
   assertEquals((result as Record<string, string>).id, '12345');
+});
+Deno.test('Stdlib: try', () => {
+  // Sucesso
+  assertEquals(evaluate('try(() -> 10 + 5)'), { success: true, value: 15 });
+
+  // Erro (acessar propriedade de nulo lançaria RuntimeError na avaliação)
+  const errResult = evaluate('try(() -> null.foo)') as {
+    success: boolean;
+    error: { message: string };
+  };
+  assertEquals(errResult.success, false);
+  assertEquals(typeof errResult.error.message, 'string');
+});
+
+Deno.test('Stdlib: matches', () => {
+  assertEquals(evaluate('matches("hello123", "[a-z]+")'), true);
+  assertEquals(evaluate('matches("hello123", "^[0-9]+$")'), false);
+  assertEquals(
+    evaluate('matches("2024-01-15", "^\\\\d{4}-\\\\d{2}-\\\\d{2}$")'),
+    true,
+  );
+});
+
+Deno.test('Stdlib: scan', () => {
+  assertEquals(evaluate('scan("one two three", "[a-z]+")'), [
+    'one',
+    'two',
+    'three',
+  ]);
+  assertEquals(evaluate('scan("a1b2c3", "\\\\d")'), ['1', '2', '3']);
+  assertEquals(evaluate('scan("no digits", "\\\\d+")'), []);
+});
+
+Deno.test('Stdlib: sizeOf (alias for length)', () => {
+  assertEquals(evaluate('sizeOf("hello")'), 5);
+  assertEquals(evaluate('sizeOf([1, 2, 3])'), 3);
+  assertEquals(evaluate('sizeOf({ a: 1, b: 2 })'), 2);
+});
+
+Deno.test('Stdlib: find', () => {
+  assertEquals(
+    evaluate('find([1, 2, 3, 4], (n) -> n > 2)'),
+    3,
+  );
+  assertEquals(evaluate('find([1, 2, 3], (n) -> n > 10)'), null);
+});
+
+Deno.test('Stdlib: some / every', () => {
+  assertEquals(evaluate('some([1, 2, 3], (n) -> n > 2)'), true);
+  assertEquals(evaluate('some([1, 2, 3], (n) -> n > 10)'), false);
+  assertEquals(evaluate('every([2, 4, 6], (n) -> n > 0)'), true);
+  assertEquals(evaluate('every([2, 4, 6], (n) -> n > 3)'), false);
+});
+
+Deno.test('Stdlib: sumBy / maxBy / minBy', () => {
+  const data =
+    '[{ "name": "A", "score": 10 }, { "name": "B", "score": 30 }, { "name": "C", "score": 20 }]';
+  assertEquals(evaluate(`sumBy(${data}, (x) -> x.score)`), 60);
+  assertEquals(
+    evaluate(`maxBy(${data}, (x) -> x.score)`),
+    { name: 'B', score: 30 },
+  );
+  assertEquals(
+    evaluate(`minBy(${data}, (x) -> x.score)`),
+    { name: 'A', score: 10 },
+  );
+});
+
+Deno.test('Stdlib: countBy', () => {
+  assertEquals(evaluate('countBy([1, 2, 3, 4, 5], (n) -> n > 3)'), 2);
+});
+
+Deno.test('Stdlib: deepFlatten', () => {
+  assertEquals(evaluate('deepFlatten([1, [2, [3, [4]]]])'), [1, 2, 3, 4]);
+  assertEquals(evaluate('deepFlatten([[1, 2], [3, 4]])'), [1, 2, 3, 4]);
 });

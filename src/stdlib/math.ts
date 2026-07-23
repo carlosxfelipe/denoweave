@@ -19,6 +19,13 @@ export const MATH_FUNCTIONS: Record<string, Value> = {
     ((a: Value, b: Value): Value =>
       (a as number) % (b as number)) as DWFunction,
   random: ((): Value => Math.random()) as DWFunction,
+  randomInt:
+    ((n: Value): Value =>
+      Math.floor(Math.random() * (n as number))) as DWFunction,
+
+  isDecimal:
+    ((n: Value): Value => typeof n === 'number' && n % 1 !== 0) as DWFunction,
+  isInteger: ((n: Value): Value => Number.isInteger(n as number)) as DWFunction,
   PI: Math.PI,
   E: Math.E,
 
@@ -48,13 +55,6 @@ export const MATH_FUNCTIONS: Record<string, Value> = {
 
   // Length (works on strings, arrays, objects)
   length: ((x: Value): Value => {
-    if (typeof x === 'string' || Array.isArray(x)) {
-      return (x as string | Value[]).length;
-    }
-    if (x && typeof x === 'object') return Object.keys(x as object).length;
-    return 0;
-  }) as DWFunction,
-  sizeOf: ((x: Value): Value => {
     if (typeof x === 'string' || Array.isArray(x)) {
       return (x as string | Value[]).length;
     }

@@ -264,6 +264,17 @@ class Evaluator {
       // ─────────────────────────────────────────────────────────────────────
 
       case 'BinaryExpression': {
+        // Short-circuit: evaluate right side only when needed
+        if (node.operator === 'and') {
+          const left = this.eval(node.left, env);
+          if (!left) return false;
+          return Boolean(this.eval(node.right, env));
+        }
+        if (node.operator === 'or') {
+          const left = this.eval(node.left, env);
+          if (left) return true;
+          return Boolean(this.eval(node.right, env));
+        }
         const left = this.eval(node.left, env);
         const right = this.eval(node.right, env);
         return this.applyBinaryOp(node.operator, left, right);
@@ -556,8 +567,7 @@ class Evaluator {
         return result;
       }
 
-      // Logical (short-circuit NOT implemented at AST level, so both sides
-      // are already evaluated — acceptable trade-off for Phase 3)
+      // Logical (short-circuit handled in BinaryExpression before reaching here)
       case 'and':
         return Boolean(left) && Boolean(right);
       case 'or':

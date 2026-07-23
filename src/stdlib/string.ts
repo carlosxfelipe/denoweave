@@ -89,4 +89,18 @@ export const STRING_FUNCTIONS: Record<string, Value> = {
 
   toString: ((v: Value): Value => String(v)) as DWFunction,
   toNumber: ((v: Value): Value => Number(v)) as DWFunction,
+
+  // Regex functions — pattern is passed as a plain string (e.g., "[a-z]+")
+  matches: ((s: Value, pattern: Value): Value => {
+    if (typeof s !== 'string' || typeof pattern !== 'string') return false;
+    return new RegExp(pattern).test(s);
+  }) as DWFunction,
+
+  scan: ((s: Value, pattern: Value): Value => {
+    if (typeof s !== 'string' || typeof pattern !== 'string') return [];
+    const matches = [...s.matchAll(new RegExp(pattern, 'g'))];
+    return matches.map((
+      m,
+    ) => (m.length > 1 ? [...m].slice(1) : m[0])) as Value[];
+  }) as DWFunction,
 };

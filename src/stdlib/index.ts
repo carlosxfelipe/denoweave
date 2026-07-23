@@ -20,6 +20,8 @@ export const STDLIB: Record<string, Value> = {
   ...ARRAY_FUNCTIONS,
   ...STRING_FUNCTIONS,
   ...SYSTEM_FUNCTIONS,
+  // DataWeave aliases
+  sizeOf: MATH_FUNCTIONS.length,
 };
 
 // Re-export individual modules for direct import

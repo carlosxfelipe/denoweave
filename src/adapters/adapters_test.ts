@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from '@std/assert';
+import { assertEquals } from '@std/assert';
 import { parseJSON, toJSON } from './json.ts';
 import { parseCSV, toCSV } from './csv.ts';
 import { parseXML, toXML } from './xml.ts';

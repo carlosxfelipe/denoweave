@@ -184,4 +184,65 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     if (a.length === 0) return null;
     return Math.max(...a);
   }) as DWFunction,
+
+  // ── Search / Predicate ───────────────────────────────────────────────────
+  find: ((arr: Value, fn: Value): Value => {
+    const a = asArray('find', arr);
+    const f = asFunc('find', fn);
+    return a.find((item) => Boolean(f(item))) ?? null;
+  }) as DWFunction,
+
+  some: ((arr: Value, fn: Value): Value => {
+    const a = asArray('some', arr);
+    const f = asFunc('some', fn);
+    return a.some((item) => Boolean(f(item)));
+  }) as DWFunction,
+
+  every: ((arr: Value, fn: Value): Value => {
+    const a = asArray('every', arr);
+    const f = asFunc('every', fn);
+    return a.every((item) => Boolean(f(item)));
+  }) as DWFunction,
+
+  // ── Key-extractor Aggregates ─────────────────────────────────────────────
+  sumBy: ((arr: Value, fn: Value): Value => {
+    const a = asArray('sumBy', arr);
+    const f = asFunc('sumBy', fn);
+    return a.reduce((acc, item) => (acc as number) + (f(item) as number), 0);
+  }) as DWFunction,
+
+  maxBy: ((arr: Value, fn: Value): Value => {
+    const a = asArray('maxBy', arr);
+    if (a.length === 0) return null;
+    const f = asFunc('maxBy', fn);
+    return a.reduce((best, item) =>
+      (f(item) as number) > (f(best) as number) ? item : best
+    );
+  }) as DWFunction,
+
+  minBy: ((arr: Value, fn: Value): Value => {
+    const a = asArray('minBy', arr);
+    if (a.length === 0) return null;
+    const f = asFunc('minBy', fn);
+    return a.reduce((best, item) =>
+      (f(item) as number) < (f(best) as number) ? item : best
+    );
+  }) as DWFunction,
+
+  countBy: ((arr: Value, fn: Value): Value => {
+    const a = asArray('countBy', arr);
+    const f = asFunc('countBy', fn);
+    return a.filter((item) => Boolean(f(item))).length;
+  }) as DWFunction,
+
+  // ── Deep Flatten ─────────────────────────────────────────────────────────
+  deepFlatten: ((arr: Value): Value => {
+    const flatten = (a: Value[]): Value[] =>
+      a.reduce<Value[]>(
+        (acc, item) =>
+          Array.isArray(item) ? [...acc, ...flatten(item)] : [...acc, item],
+        [],
+      );
+    return flatten(asArray('deepFlatten', arr));
+  }) as DWFunction,
 };

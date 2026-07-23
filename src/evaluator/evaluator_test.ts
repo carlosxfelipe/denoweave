@@ -315,6 +315,29 @@ Deno.test('Evaluator: if with condition expression', () => {
   assertEquals(result, 'positive');
 });
 
+// ── Short-circuit logical operators ───────────────────────────────────────────
+
+Deno.test('Evaluator: and short-circuits on false left side', () => {
+  // If short-circuit works, the right side (null.foo) is never evaluated
+  // and should NOT throw a RuntimeError.
+  assertEquals(evaluate('false and null.foo'), false);
+});
+
+Deno.test('Evaluator: or short-circuits on true left side', () => {
+  // If short-circuit works, the right side (null.foo) is never evaluated.
+  assertEquals(evaluate('true or null.foo'), true);
+});
+
+Deno.test('Evaluator: and evaluates right side when left is true', () => {
+  assertEquals(evaluate('true and false'), false);
+  assertEquals(evaluate('true and true'), true);
+});
+
+Deno.test('Evaluator: or evaluates right side when left is false', () => {
+  assertEquals(evaluate('false or false'), false);
+  assertEquals(evaluate('false or true'), true);
+});
+
 // ── Pipe operator ─────────────────────────────────────────────────────────────
 
 Deno.test('Evaluator: pipe |> applies function', () => {

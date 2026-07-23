@@ -64,7 +64,7 @@ class XmlParser {
   }
 
   private readContent(
-    parentTag: string,
+    _parentTag: string,
   ): { text: string; children: XmlElement[] } {
     let text = '';
     const children: XmlElement[] = [];

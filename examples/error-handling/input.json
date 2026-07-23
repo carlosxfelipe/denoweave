@@ -1,0 +1,32 @@
+[
+  {
+    "id": 1,
+    "name": "Alice",
+    "salary": 5000,
+    "department": { "name": "Engineering" }
+  },
+  {
+    "id": 2,
+    "name": "Bob",
+    "salary": null,
+    "department": { "name": "HR" }
+  },
+  {
+    "id": 3,
+    "name": "Charlie",
+    "salary": 8000,
+    "department": null
+  },
+  {
+    "id": 4,
+    "name": "Diana",
+    "salary": 6000,
+    "department": { "name": "Marketing" }
+  },
+  {
+    "id": 5,
+    "name": null,
+    "salary": 4500,
+    "department": { "name": "Finance" }
+  }
+]

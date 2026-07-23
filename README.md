@@ -11,23 +11,104 @@
 - [Deno extension](https://marketplace.visualstudio.com/items?itemName=denoland.vscode-deno)
   for VS Code (recommended).
 
+### VS Code Setup
+
+If you use VS Code and have the **Prettier** extension installed, it may
+conflict with Deno's formatter. To use Deno's formatter automatically on save,
+add the following to your `.vscode/settings.json`:
+
+```json
+"[typescript]": {
+  "editor.defaultFormatter": "denoland.vscode-deno"
+}
+```
+
+---
+
+## Quick Start
+
+No install needed — run directly from the source:
+
+```bash
+echo '[{"name":"alice","active":true},{"name":"bob","active":false}]' | \
+  deno run --allow-read src/cli/main.ts \
+  --expr 'payload filter ($.active) map ((u) -> { name: upper(u.name) })'
+```
+
+Output:
+
+```json
+[{ "name": "ALICE" }]
+```
+
+Or use a `.dwl` script file:
+
+```bash
+deno run --allow-read src/cli/main.ts \
+  --script transform.dwl \
+  --input data.json
+```
+
+Or use as a library in your Deno project:
+
+```ts
+import { evaluate } from './src/mod.ts';
+
+const result = evaluate(
+  `payload.users map ((u) -> { name: upper(u.name), active: u.enabled })`,
+  { payload: { users: [{ name: 'alice', enabled: true }] } },
+);
+// → [{ name: 'ALICE', active: true }]
+```
+
+### Running the Examples
+
+The project includes several practical use-cases in the `examples/` folder. Run
+them from the project root:
+
+- **JSON Transformation:** Load and transform a static file.
+  ```bash
+  deno run --allow-read examples/json-to-json/run.ts
+  ```
+- **CSV to XML (CLI):** Transform CSV to XML directly via the CLI.
+  ```bash
+  deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
+  ```
+- **Error Handling:** Safely process a batch with malformed records using
+  `try()`.
+  ```bash
+  deno run --allow-read examples/error-handling/run.ts
+  ```
+- **HTTP Server:** Transform incoming JSON payloads in real-time.
+  ```bash
+  deno run --allow-net --allow-read examples/http-server/server.ts
+  ```
+- **Connectors / ETL Flow:** Fetch and transform real data from an external API.
+  ```bash
+  deno run --allow-net --allow-read examples/connectors/flow.ts
+  ```
+- **Docs-as-Code Pipeline:** Orchestrate extraction, transformation, and
+  loading.
+  ```bash
+  deno run --allow-net --allow-read examples/pipeline/run.ts
+  ```
+
 ---
 
 ## Why Deno?
 
-Built on Deno, this engine benefits from modern runtime security and dependency
-management:
+Deno provides unique advantages for a lightweight data transformation engine
+that Node and Bun don't offer natively:
 
-- **Secure by Default (Sandbox):** No file system, network, or environment
-  access is granted unless explicitly allowed (e.g., via the `--allow-read`
-  flag). This prevents compromised dependencies from accessing sensitive host
-  resources.
-- **Cryptographic Integrity:** All remote dependencies are locked and verified
-  using a lockfile (`deno.lock`). Any unauthorized modification to the source
-  URL or repository will fail the integrity check and block execution.
-- **No Install Scripts:** Unlike Node.js/npm, Deno does not run arbitrary
-  lifecycle scripts (like `postinstall`) upon resolving dependencies,
-  eliminating a major vector for supply chain attacks.
+- **Run from URLs (No Install):** Users can execute DenoWeave directly from a
+  URL (e.g., `deno run https://...`) without needing a `package.json`,
+  `node_modules`, or an install step.
+- **Single-Binary Compilation:** The built-in `deno compile` cross-compiles the
+  entire engine into a standalone, zero-dependency executable natively for
+  Linux, Mac, or Windows.
+- **Strict Sandbox Security:** Unlike Bun, Deno denies file, network, and
+  environment access by default. Executing an untrusted data transformation
+  script is guaranteed safe unless explicitly granted (e.g., `--allow-read`).
 
 ---
 
@@ -37,9 +118,9 @@ DenoWeave implements a fully-featured parser and evaluator that supports modern
 DataWeave 2.x syntax:
 
 - **Core Types**: Strings, Numbers, Booleans, Null, Arrays, Objects.
-- **Operations**: Arithmetic, logical (`and`, `or`, `not`), comparisons, default
-  (`default`), casting (`as`), array/string/object concatenation (`++`), and
-  range slicing (`to`).
+- **Operations**: Arithmetic, logical with short-circuit evaluation (`and`,
+  `or`, `not`), comparisons, default (`default`), casting (`as`),
+  array/string/object concatenation (`++`), and range slicing (`to`).
 - **Functions & Lambdas**: Named functions (`fun`), single-param lambdas
   (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
 - **Infix Higher-Order Functions**: `map`, `filter`, `reduce`, plus
@@ -52,18 +133,6 @@ DataWeave 2.x syntax:
   (`case q if q > 100`).
 - **Scoping**: Local scope evaluation via `do { ... }` blocks.
 - **Control Flow**: `if / else` expressions.
-
----
-
-## Development
-
-```bash
-# Run any .dwl file
-deno task cli --script examples/json-to-json/transform.dwl --input examples/json-to-json/input.json
-
-# CLI
-deno task cli --help
-```
 
 ---
 
@@ -179,57 +248,6 @@ Output:
 
 ---
 
-## Running a Complete Example
-
-The project includes practical examples organized by use-cases in the
-`examples/` folder. Here are the main examples you can run:
-
-### JSON Transformation (Standalone)
-
-Load a data file `input.json`, transform it via `transform.dwl`, and print the
-formatted result:
-
-```bash
-deno run --allow-read examples/json-to-json/run.ts
-```
-
-### CSV to XML (CLI)
-
-Transform CSV to XML directly via the CLI:
-
-```bash
-deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
-```
-
-### HTTP Server (API Transformation)
-
-Run a Deno web server that accepts POST requests and transforms the incoming
-JSON payload in real-time:
-
-```bash
-deno run --allow-net --allow-read examples/http-server/server.ts
-```
-
-### Connectors / ETL Flow
-
-Simulates a classic MuleSoft "Connector" flow by fetching real data from an
-external HTTP API and transforming it:
-
-```bash
-deno run --allow-net --allow-read examples/connectors/flow.ts
-```
-
-### Docs-as-Code Pipeline
-
-Demonstrates a fluent, programmable API (like Apache Camel) to orchestrate data
-extraction, transformation, and loading (`from`, `transform`, `to`):
-
-```bash
-deno run --allow-net --allow-read examples/pipeline/run.ts
-```
-
----
-
 ## Stdlib (Selection)
 
 | Category   | Functions                                                                                                                             |
@@ -257,6 +275,18 @@ To run the tests in watch mode:
 
 ```bash
 deno task test:watch
+```
+
+To run the linter:
+
+```bash
+deno task lint
+```
+
+To format the code:
+
+```bash
+deno task fmt
 ```
 
 ---
@@ -288,11 +318,14 @@ fundamentally from the official MuleSoft DataWeave implementation:
   contrast, loads the entire payload into memory to build its Abstract Syntax
   Tree (AST). This means DenoWeave will hit V8 memory limits if you attempt to
   process extremely large datasets.
-- **Startup Time (Cold Starts):** Because DenoWeave runs on the V8 JavaScript
-  engine rather than the JVM, it bypasses the typical Java "cold start" delay.
-  This makes it an interesting experiment for lightweight, serverless
-  environments (like AWS Lambda or Deno Deploy) where scripts need to start and
-  execute instantly, provided the payloads remain reasonably small.
+- **Startup Time & Edge Computing:** While the JVM ecosystem relies on
+  Ahead-of-Time (AOT) compilation (like GraalVM) to mitigate cold starts in
+  serverless environments, DenoWeave runs on the V8 JavaScript engine. This
+  natively leverages V8 Isolates, enabling near-instant startup times without
+  compilation steps. This makes it an interesting fit for modern Edge
+  environments (like Deno Deploy or Cloudflare Workers) where scripts need to
+  start and execute in milliseconds, provided the payloads remain reasonably
+  small.
 - **Future Evolution (Streaming & Wasm):** If someone were to fork or evolve
   this project to handle multi-gigabyte files, the modern Deno ecosystem
   provides excellent native paths. The data adapters and evaluator could be
@@ -305,7 +338,10 @@ fundamentally from the official MuleSoft DataWeave implementation:
 
 ## VS Code Extension
 
-Note that using the official MuleSoft DataWeave extension in VS Code may cause some noise, such as false-positive linting errors and engine incompatibilities. Because of this, I created my own lightweight syntax highlighting extension for DenoWeave:
+Note that using the official MuleSoft DataWeave extension in VS Code may cause
+some noise, such as false-positive linting errors and engine incompatibilities.
+Because of this, I created my own lightweight syntax highlighting extension for
+DenoWeave:
 
 [DataWeave Syntax Extension](https://github.com/carlosxfelipe/dataweave-syntax-extension)
 
