@@ -544,3 +544,15 @@ Deno.test('Evaluator: dynamic expansion with duplicate keys', () => {
   const result = evaluate('{ ( [{a: 1}, {a: 2}] ) }');
   assertEquals(result, { a: [1, 2] });
 });
+
+Deno.test('Evaluator: deep descendant selector (..)', () => {
+  const payload = {
+    user: { name: 'Alice', age: 30 },
+    friends: [
+      { name: 'Bob' },
+      { name: 'Charlie', detail: { name: 'Dave' } },
+    ],
+  };
+  const result = evaluate('payload..name', { payload });
+  assertEquals(result, ['Alice', 'Bob', 'Charlie', 'Dave']);
+});

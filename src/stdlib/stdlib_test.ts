@@ -271,6 +271,18 @@ Deno.test('Stdlib: invert', () => {
   assertEquals(evaluate('invert({ a: "x", b: "y" })'), { x: 'a', y: 'b' });
 });
 
+Deno.test('Stdlib: update', () => {
+  const obj = '{ "user": { "name": "alice", "age": 20 } }';
+  assertEquals(
+    evaluate(`update(${obj}, "user.age", (age) -> age + 1)`),
+    { user: { name: 'alice', age: 21 } },
+  );
+  assertEquals(
+    evaluate(`update(${obj}, ["user", "name"], (n) -> upper(n))`),
+    { user: { name: 'ALICE', age: 20 } },
+  );
+});
+
 Deno.test('Stdlib: now', () => {
   const result = evaluate('now()');
   assertEquals(result instanceof Date, true);
@@ -360,4 +372,31 @@ Deno.test('Stdlib: countBy', () => {
 Deno.test('Stdlib: deepFlatten', () => {
   assertEquals(evaluate('deepFlatten([1, [2, [3, [4]]]])'), [1, 2, 3, 4]);
   assertEquals(evaluate('deepFlatten([[1, 2], [3, 4]])'), [1, 2, 3, 4]);
+});
+
+Deno.test('Stdlib: uuid', () => {
+  const u = evaluate('uuid()');
+  assertEquals(typeof u, 'string');
+  assertEquals((u as string).length, 36);
+});
+
+Deno.test('Stdlib: log', () => {
+  // log returns the value it logs
+  assertEquals(evaluate('log("DEBUG", 42)'), 42);
+  assertEquals(evaluate('log("Just a message")'), 'Just a message');
+});
+
+Deno.test('Stdlib: read', () => {
+  const jsonStr = '{"a": 1}';
+  assertEquals(evaluate(`read('${jsonStr}', "application/json")`), { a: 1 });
+  const csvStr = 'name,age\\nAlice,30';
+  assertEquals(evaluate(`read('${csvStr}', "text/csv")`), [{
+    name: 'Alice',
+    age: 30,
+  }]);
+});
+
+Deno.test('Stdlib: write', () => {
+  const str = evaluate('write({ "a": 1 }, "application/json")') as string;
+  assertEquals(JSON.parse(str), { a: 1 });
 });

@@ -1,5 +1,9 @@
 import type { DWFunction, Value } from '../evaluator/environment.ts';
-import { type Format, parse as parseAdapter } from '../adapters/index.ts';
+import {
+  type Format,
+  parse as parseAdapter,
+  serialize,
+} from '../adapters/index.ts';
 
 export const SYSTEM_FUNCTIONS: Record<string, Value> = {
   now: (() => new Date()) as DWFunction,
@@ -64,5 +68,40 @@ export const SYSTEM_FUNCTIONS: Record<string, Value> = {
     }
 
     return parseAdapter(content, format);
+  }) as DWFunction,
+
+  uuid: (() => crypto.randomUUID()) as DWFunction,
+
+  log: ((prefix: Value, value?: Value): Value => {
+    // DataWeave's log(prefix, value) or log(value) returns the value
+    if (value === undefined) {
+      console.error(prefix);
+      return prefix;
+    }
+    console.error(String(prefix), value);
+    return value;
+  }) as DWFunction,
+
+  read: ((content: Value, mimeTypeVal?: Value): Value => {
+    const str = String(content);
+    let format: Format = 'json';
+    if (mimeTypeVal) {
+      const mime = String(mimeTypeVal);
+      if (mime.includes('csv')) format = 'csv';
+      else if (mime.includes('xml')) format = 'xml';
+      else if (mime.includes('yaml') || mime.includes('yml')) format = 'yaml';
+    }
+    return parseAdapter(str, format);
+  }) as DWFunction,
+
+  write: ((val: Value, mimeTypeVal?: Value): Value => {
+    let format: Format = 'json';
+    if (mimeTypeVal) {
+      const mime = String(mimeTypeVal);
+      if (mime.includes('csv')) format = 'csv';
+      else if (mime.includes('xml')) format = 'xml';
+      else if (mime.includes('yaml') || mime.includes('yml')) format = 'yaml';
+    }
+    return serialize(val, format);
   }) as DWFunction,
 };

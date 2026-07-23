@@ -447,7 +447,8 @@ export class Parser {
     let expr = this.parsePrimary();
 
     while (true) {
-      if (this.check(TokenType.DOT)) {
+      if (this.check(TokenType.DOT) || this.check(TokenType.DOTDOT)) {
+        const isDeep = this.check(TokenType.DOTDOT);
         this.advance();
         const prop = this.expectPropName();
         expr = {
@@ -459,8 +460,9 @@ export class Parser {
             line: prop.line,
             column: prop.column,
           },
-          line: prop.line,
-          column: prop.column,
+          isDeep: isDeep || undefined,
+          line: expr.line,
+          column: expr.column,
         };
       } else if (this.check(TokenType.LBRACKET)) {
         this.advance();

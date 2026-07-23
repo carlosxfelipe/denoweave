@@ -117,4 +117,44 @@ export const OBJECT_FUNCTIONS: Record<string, Value> = {
     for (const [k, v] of Object.entries(obj as DWObject)) result[String(v)] = k;
     return result;
   }) as DWFunction,
+
+  update: ((obj: Value, path: Value, fn: Value): Value => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;
+    if (typeof fn !== 'function') return obj;
+
+    const pathKeys = Array.isArray(path)
+      ? path.map(String)
+      : String(path).split('.');
+
+    if (pathKeys.length === 0) return obj;
+
+    const f = fn as DWFunction;
+
+    const cloneAndSet = (
+      current: Value,
+      keys: string[],
+      idx: number,
+    ): Value => {
+      if (idx === keys.length) {
+        return f(current);
+      }
+      const key = keys[idx];
+      const isObj = current && typeof current === 'object' &&
+        !Array.isArray(current);
+
+      const cloned =
+        (isObj ? { ...(current as Record<string, Value>) } : {}) as Record<
+          string,
+          Value
+        >;
+      cloned[key] = cloneAndSet(
+        isObj ? (current as Record<string, Value>)[key] : undefined,
+        keys,
+        idx + 1,
+      );
+      return cloned;
+    };
+
+    return cloneAndSet(obj, pathKeys, 0);
+  }) as DWFunction,
 };

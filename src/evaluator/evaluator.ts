@@ -42,6 +42,9 @@ class Evaluator {
 
       case 'MemberExpression': {
         const obj = this.eval(node.object, env);
+        if (node.isDeep) {
+          return this.getDeepProperty(obj, node.property.name);
+        }
         return this.getProperty(obj, node.property.name);
       }
 
@@ -478,9 +481,39 @@ class Evaluator {
       return (obj as DWObject)[name] ?? null;
     }
 
-    if (typeof obj === 'string' && name === 'length') return obj.length;
+    if (typeof obj === 'string' && name === 'length') {
+      return obj.length;
+    }
 
     return null;
+  }
+
+  /**
+   * Deep descendant selector (`..`).
+   * Recursively traverses the object/array and collects all values matching the key.
+   */
+  private getDeepProperty(obj: Value, name: string): Value[] {
+    const results: Value[] = [];
+
+    const traverse = (current: Value) => {
+      if (current === null || current === undefined) return;
+
+      if (Array.isArray(current)) {
+        for (const item of current) traverse(item);
+        return;
+      }
+
+      if (typeof current === 'object') {
+        const dict = current as DWObject;
+        for (const [k, v] of Object.entries(dict)) {
+          if (k === name) results.push(v);
+          traverse(v);
+        }
+      }
+    };
+
+    traverse(obj);
+    return results;
   }
 
   // ── Duplicate key helper ──────────────────────────────────────────────────

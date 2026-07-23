@@ -70,6 +70,10 @@ them from the project root:
   ```bash
   deno run --allow-read examples/json-to-json/run.ts
   ```
+- **Deep Descendant Selector (`..`):** Traverse deeply nested JSON to find values.
+  ```bash
+  deno run --allow-read examples/descendant-selector/run.ts
+  ```
 - **CSV to XML (CLI):** Transform CSV to XML directly via the CLI.
   ```bash
   deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
@@ -244,6 +248,55 @@ Output:
     "totalWithTax": 0
   }
 ]
+```
+
+### Deep Descendant Selector (`..`)
+
+The `..` operator allows you to recursively extract all values matching a
+specific key from anywhere within a deeply nested JSON structure.
+
+```dw
+%dw 2.0
+output application/json
+var payload = {
+  company: {
+    departments: [
+      {
+        employees: [
+          { name: "Alice", role: "Engineer" },
+          { name: "Bob", role: "Manager" }
+        ]
+      },
+      {
+        employees: [
+          { name: "Charlie", contacts: [{ name: "Dave" }] }
+        ]
+      }
+    ]
+  }
+}
+---
+{
+  all_names: payload..name,
+  roles: (payload..role) distinctBy $
+}
+```
+
+Output:
+
+```json
+{
+  "all_names": [
+    "Alice",
+    "Bob",
+    "Charlie",
+    "Dave"
+  ],
+  "roles": [
+    "Engineer",
+    "Manager"
+  ]
+}
 ```
 
 ---

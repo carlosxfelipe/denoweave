@@ -1,0 +1,33 @@
+{
+  "company": {
+    "name": "Tech Corp",
+    "departments": [
+      {
+        "id": "eng",
+        "employees": [
+          { "id": 1, "name": "Alice", "role": "Engineer" },
+          { "id": 2, "name": "Bob", "role": "Manager" }
+        ]
+      },
+      {
+        "id": "sales",
+        "employees": [
+          {
+            "id": 3,
+            "name": "Charlie",
+            "role": "Sales Rep",
+            "contacts": [
+              { "name": "Dave", "phone": "123-4567" },
+              { "name": "Eve", "phone": "555-0199" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "metadata": {
+    "createdBy": {
+      "name": "System Admin"
+    }
+  }
+}

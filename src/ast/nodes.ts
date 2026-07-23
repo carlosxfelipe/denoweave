@@ -70,6 +70,8 @@ export interface MemberExpression extends BaseNode {
   type: 'MemberExpression';
   object: Expression;
   property: Identifier;
+  /** True if this is a deep descendant selector (`..`) */
+  isDeep?: boolean;
 }
 
 /** `object[index]` — computed member access */
