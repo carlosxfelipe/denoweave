@@ -556,3 +556,23 @@ Deno.test('Evaluator: deep descendant selector (..)', () => {
   const result = evaluate('payload..name', { payload });
   assertEquals(result, ['Alice', 'Bob', 'Charlie', 'Dave']);
 });
+
+Deno.test('Evaluator: temporal math with ISO 8601 literals', () => {
+  const result = evaluate(`
+    {
+      addDay: |2024-01-15| + |P1D|,
+      leapYear: |2024-02-28| + |P1D|,
+      subtractMonth: |2024-02-29| - |P1M|,
+      addTime: |2024-01-15T10:00:00| + |PT2H30M|
+    }
+  `);
+  // The evaluator returns Temporal objects. When stringified or compared, they can be matched via toString()
+  // Since we are checking strict equality, let's just stringify both to avoid instance reference mismatch
+  const stringified = JSON.parse(JSON.stringify(result));
+  assertEquals(stringified, {
+    addDay: '2024-01-16',
+    leapYear: '2024-02-29',
+    subtractMonth: '2024-01-29',
+    addTime: '2024-01-15T12:30:00',
+  });
+});

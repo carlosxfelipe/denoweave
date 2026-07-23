@@ -473,3 +473,22 @@ f(x)`;
   assertEquals(prog.declarations[2].type, 'FunctionDeclaration');
   assertEquals(prog.body.type, 'CallExpression');
 });
+
+Deno.test('Parser: temporal literal', () => {
+  const prog = Parser.fromSource('|2024-01-15| + |P1D|').parse();
+  assertEquals(prog.type, 'Program');
+  assertEquals(prog.body.type, 'BinaryExpression');
+
+  if (prog.body.type === 'BinaryExpression') {
+    assertEquals(prog.body.left.type, 'TemporalLiteral');
+    assertEquals((prog.body.left as AST.TemporalLiteral).temporalType, 'date');
+    assertEquals((prog.body.left as AST.TemporalLiteral).value, '2024-01-15');
+
+    assertEquals(prog.body.right.type, 'TemporalLiteral');
+    assertEquals(
+      (prog.body.right as AST.TemporalLiteral).temporalType,
+      'period',
+    );
+    assertEquals((prog.body.right as AST.TemporalLiteral).value, 'P1D');
+  }
+});

@@ -161,7 +161,27 @@ export class Lexer {
           this.advance();
           return this.makeToken(TokenType.PIPE, '|>', line, col);
         }
-        return this.makeToken(TokenType.ILLEGAL, '|', line, col);
+
+        // Temporal literal (Date or Period)
+        let content = '';
+        while (!this.isEOF() && this.peek() !== '|') {
+          content += this.advance();
+        }
+
+        if (this.isEOF()) {
+          return this.makeToken(TokenType.ILLEGAL, '|' + content, line, col);
+        }
+
+        this.advance(); // consume closing '|'
+
+        // Period literals in ISO 8601 start with P or -P (e.g., P1Y, -P1D)
+        const isPeriod = content.startsWith('P') || content.startsWith('-P') ||
+          content.startsWith('+P');
+        const type = isPeriod
+          ? TokenType.PERIOD_LITERAL
+          : TokenType.DATE_LITERAL;
+
+        return this.makeToken(type, content, line, col);
       }
       case '+': {
         if (this.peek() === '+') {

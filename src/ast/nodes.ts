@@ -34,7 +34,8 @@ export type NodeType =
   | 'DoExpression'
   | 'MatchExpression'
   | 'AnonymousArgExpression'
-  | 'DynamicExpansion';
+  | 'DynamicExpansion'
+  | 'TemporalLiteral';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
 
@@ -61,6 +62,14 @@ export interface Literal extends BaseNode {
   value: string | number | boolean | null;
   /** Original source representation, useful for error messages. */
   raw: string;
+}
+
+/** A temporal value: `|2024-01-15|`, `|P1D|` */
+export interface TemporalLiteral extends BaseNode {
+  type: 'TemporalLiteral';
+  temporalType: 'date' | 'period';
+  value: string; // The raw ISO string
+  raw: string; // The full string including pipes, e.g., "|P1D|"
 }
 
 // ── Access expressions ───────────────────────────────────────────────────────
@@ -330,7 +339,8 @@ export type Expression =
   | AsExpression
   | AnonymousArgExpression
   | DoExpression
-  | MatchExpression;
+  | MatchExpression
+  | TemporalLiteral;
 
 export type AnyNode =
   | Program

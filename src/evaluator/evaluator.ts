@@ -33,6 +33,23 @@ class Evaluator {
       case 'Literal':
         return node.value;
 
+      case 'TemporalLiteral':
+        if (node.temporalType === 'period') {
+          // @ts-ignore: Temporal is natively available in Deno
+          return Temporal.Duration.from(node.value);
+        }
+        // Simple ISO 8601 parsing logic
+        if (node.value.includes('T')) {
+          if (node.value.includes('Z') || node.value.match(/[+-]\d\d:\d\d$/)) {
+            // @ts-ignore: Temporal is natively available in Deno
+            return Temporal.Instant.from(node.value);
+          }
+          // @ts-ignore: Temporal is natively available in Deno
+          return Temporal.PlainDateTime.from(node.value);
+        }
+        // @ts-ignore: Temporal is natively available in Deno
+        return Temporal.PlainDate.from(node.value);
+
       case 'Identifier':
         return env.get(node.name);
 
@@ -540,11 +557,39 @@ class Evaluator {
   private applyBinaryOp(op: string, left: Value, right: Value): Value {
     switch (op) {
       // Arithmetic / string concatenation
-      case '+':
+      case '+': {
+        // Temporal Math
+        // @ts-ignore: Temporal is natively available in Deno
+        if (typeof Temporal !== 'undefined') {
+          // @ts-ignore: Temporal is natively available in Deno
+          const isTempLeft = left instanceof Temporal.PlainDate ||
+            left instanceof Temporal.PlainDateTime ||
+            left instanceof Temporal.Duration ||
+            left instanceof Temporal.Instant;
+          // @ts-ignore: Temporal is natively available in Deno
+          const isTempRight = right instanceof Temporal.PlainDate ||
+            right instanceof Temporal.PlainDateTime ||
+            right instanceof Temporal.Duration ||
+            right instanceof Temporal.Instant;
+
+          if (isTempLeft && isTempRight) {
+            // @ts-ignore: Temporal is natively available in Deno
+            if (left instanceof Temporal.Duration) {
+              // @ts-ignore: Temporal is natively available in Deno
+              if (right instanceof Temporal.Duration) return left.add(right);
+              // @ts-ignore: Temporal is natively available in Deno
+              return right.add(left); // Duration + Date -> Date + Duration
+            }
+            // @ts-ignore: Temporal is natively available in Deno
+            return left.add(right);
+          }
+        }
+
         if (typeof left === 'string' || typeof right === 'string') {
           return String(left) + String(right);
         }
         return (left as number) + (right as number);
+      }
       case '++':
         if (Array.isArray(left)) {
           return [...left, ...(Array.isArray(right) ? right : [right])];
@@ -558,8 +603,28 @@ class Evaluator {
           );
         }
         return String(left) + String(right);
-      case '-':
+      case '-': {
+        // Temporal Math
+        // @ts-ignore: Temporal is natively available in Deno
+        if (typeof Temporal !== 'undefined') {
+          // @ts-ignore: Temporal is natively available in Deno
+          const isTempLeft = left instanceof Temporal.PlainDate ||
+            left instanceof Temporal.PlainDateTime ||
+            left instanceof Temporal.Duration ||
+            left instanceof Temporal.Instant;
+          // @ts-ignore: Temporal is natively available in Deno
+          const isTempRight = right instanceof Temporal.PlainDate ||
+            right instanceof Temporal.PlainDateTime ||
+            right instanceof Temporal.Duration ||
+            right instanceof Temporal.Instant;
+
+          if (isTempLeft && isTempRight) {
+            // @ts-ignore: Temporal is natively available in Deno
+            return left.subtract(right);
+          }
+        }
         return (left as number) - (right as number);
+      }
       case '*':
         return (left as number) * (right as number);
       case '/': {

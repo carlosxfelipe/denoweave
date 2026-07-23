@@ -8,6 +8,8 @@ export enum TokenType {
   STRING = 'STRING',
   BOOLEAN = 'BOOLEAN',
   NULL = 'NULL',
+  DATE_LITERAL = 'DATE_LITERAL',
+  PERIOD_LITERAL = 'PERIOD_LITERAL',
 
   // ── Identifiers ───────────────────────────────────────────
   IDENT = 'IDENT',

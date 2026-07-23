@@ -517,6 +517,22 @@ export class Parser {
       };
     }
 
+    // Temporal literals
+    if (
+      tok.type === TokenType.DATE_LITERAL ||
+      tok.type === TokenType.PERIOD_LITERAL
+    ) {
+      this.advance();
+      return {
+        type: 'TemporalLiteral',
+        temporalType: tok.type === TokenType.DATE_LITERAL ? 'date' : 'period',
+        value: tok.value,
+        raw: `|${tok.value}|`,
+        line: tok.line,
+        column: tok.column,
+      };
+    }
+
     // String literal
     if (tok.type === TokenType.STRING) {
       this.advance();

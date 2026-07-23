@@ -1,0 +1,10 @@
+{
+  "projectStart": "2024-02-20",
+  "deadlines": {
+    "phase1": "P1M10D",
+    "phase2": "P3M",
+    "buffer": "P15D"
+  },
+  "meetingTime": "2024-02-25T14:00:00",
+  "meetingDuration": "PT1H30M"
+}

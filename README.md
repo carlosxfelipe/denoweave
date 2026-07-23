@@ -70,9 +70,15 @@ them from the project root:
   ```bash
   deno run --allow-read examples/json-to-json/run.ts
   ```
-- **Deep Descendant Selector (`..`):** Traverse deeply nested JSON to find values.
+- **Deep Descendant Selector (`..`):** Traverse deeply nested JSON to find
+  values.
   ```bash
   deno run --allow-read examples/descendant-selector/run.ts
+  ```
+- **ISO 8601 Date Math:** Explore how the native Temporal API handles leap years
+  and periods.
+  ```bash
+  deno run --allow-read examples/date-math/run.ts
   ```
 - **CSV to XML (CLI):** Transform CSV to XML directly via the CLI.
   ```bash

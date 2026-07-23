@@ -231,3 +231,15 @@ Deno.test('Lexer: new tokens %, ---, default, as, var, fun, type, $, $$', () => 
     TokenType.EOF,
   ]);
 });
+
+Deno.test('Lexer: temporal literals', () => {
+  const tokens = new Lexer('|2024-01-15| |P1Y2M| |-P1D|').tokenize();
+  assertEquals(tokens[0].type, TokenType.DATE_LITERAL);
+  assertEquals(tokens[0].value, '2024-01-15');
+
+  assertEquals(tokens[1].type, TokenType.PERIOD_LITERAL);
+  assertEquals(tokens[1].value, 'P1Y2M');
+
+  assertEquals(tokens[2].type, TokenType.PERIOD_LITERAL);
+  assertEquals(tokens[2].value, '-P1D');
+});
