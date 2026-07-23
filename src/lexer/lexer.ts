@@ -194,8 +194,13 @@ export class Lexer {
         return this.makeToken(TokenType.STAR, '*', line, col);
       case '/':
         return this.makeToken(TokenType.SLASH, '/', line, col);
-      case ':':
+      case ':': {
+        if (this.peek() === ':') {
+          this.advance();
+          return this.makeToken(TokenType.DOUBLE_COLON, '::', line, col);
+        }
         return this.makeToken(TokenType.COLON, ':', line, col);
+      }
       case ',':
         return this.makeToken(TokenType.COMMA, ',', line, col);
       case ';':

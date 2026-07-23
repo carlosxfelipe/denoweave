@@ -109,11 +109,16 @@ export class Parser {
               !this.check(TokenType.PERCENT) &&
               !this.check(TokenType.VAR) &&
               !this.check(TokenType.FUN) &&
-              !this.check(TokenType.TYPE)
+              !this.check(TokenType.TYPE) &&
+              !this.check(TokenType.IMPORT)
             ) {
-              // Stop if we hit a standalone 'output' identifier at line start
               const cur = this.peek();
-              if (cur.type === TokenType.IDENT && cur.value === 'output') break;
+              if (
+                cur.type === TokenType.IDENT &&
+                (cur.value === 'output' || cur.value === 'input')
+              ) {
+                break;
+              }
               this.advance();
             }
           }
@@ -128,6 +133,8 @@ export class Parser {
           declarations.push(this.parseFunDeclaration());
         } else if (tok.type === TokenType.TYPE) {
           declarations.push(this.parseTypeDeclaration());
+        } else if (tok.type === TokenType.IMPORT) {
+          declarations.push(this.parseImportDeclaration());
         } else if (tok.type === TokenType.IDENT && tok.value === 'input') {
           // bare `input payload application/json` — DW 2.0 standalone syntax
           // Consume the full directive: input <name> <mime-type>
@@ -138,7 +145,8 @@ export class Parser {
             !this.check(TokenType.PERCENT) &&
             !this.check(TokenType.VAR) &&
             !this.check(TokenType.FUN) &&
-            !this.check(TokenType.TYPE)
+            !this.check(TokenType.TYPE) &&
+            !this.check(TokenType.IMPORT)
           ) {
             const cur = this.peek();
             if (
@@ -241,6 +249,78 @@ export class Parser {
       type: 'TypeDeclaration',
       name,
       definition: def.trim(),
+      line: start.line,
+      column: start.column,
+    };
+  }
+
+  private parseImportDeclaration(): AST.ImportDeclaration {
+    const start = this.expect(TokenType.IMPORT);
+
+    let imports: '*' | 'namespace' | { name: string; alias?: string }[] = [];
+    let moduleName = '';
+
+    if (this.check(TokenType.STAR)) {
+      this.advance();
+      imports = '*';
+      this.expect(TokenType.FROM);
+    } else {
+      const firstTok = this.expect(TokenType.IDENT);
+
+      // If we see '::' or we are directly at EOF/next token without 'from'/'as'/','
+      if (
+        this.check(TokenType.DOUBLE_COLON) ||
+        (!this.check(TokenType.AS) && !this.check(TokenType.COMMA) &&
+          !this.check(TokenType.FROM))
+      ) {
+        imports = 'namespace';
+        moduleName = firstTok.value;
+        while (this.check(TokenType.DOUBLE_COLON)) {
+          this.advance();
+          moduleName += '::' + this.expect(TokenType.IDENT).value;
+        }
+        return {
+          type: 'ImportDeclaration',
+          moduleName,
+          imports,
+          line: start.line,
+          column: start.column,
+        };
+      } else {
+        imports = [];
+        let alias: string | undefined = undefined;
+        if (this.check(TokenType.AS)) {
+          this.advance();
+          alias = this.expect(TokenType.IDENT).value;
+        }
+        imports.push({ name: firstTok.value, alias });
+
+        while (this.check(TokenType.COMMA)) {
+          this.advance();
+          const nameTok = this.expect(TokenType.IDENT);
+          alias = undefined;
+          if (this.check(TokenType.AS)) {
+            this.advance();
+            alias = this.expect(TokenType.IDENT).value;
+          }
+          imports.push({ name: nameTok.value, alias });
+        }
+        this.expect(TokenType.FROM);
+      }
+    }
+
+    if (moduleName === '') {
+      moduleName = this.expect(TokenType.IDENT).value;
+      while (this.check(TokenType.DOUBLE_COLON)) {
+        this.advance();
+        moduleName += '::' + this.expect(TokenType.IDENT).value;
+      }
+    }
+
+    return {
+      type: 'ImportDeclaration',
+      moduleName,
+      imports,
       line: start.line,
       column: start.column,
     };
@@ -447,7 +527,11 @@ export class Parser {
     let expr = this.parsePrimary();
 
     while (true) {
-      if (this.check(TokenType.DOT) || this.check(TokenType.DOTDOT)) {
+      if (
+        this.check(TokenType.DOT) ||
+        this.check(TokenType.DOTDOT) ||
+        this.check(TokenType.DOUBLE_COLON)
+      ) {
         const isDeep = this.check(TokenType.DOTDOT);
         this.advance();
         const prop = this.expectPropName();

@@ -716,9 +716,19 @@ class Evaluator {
  * // → ['Alice', 'Bob']
  * ```
  */
+export interface EvaluateOptions {
+  /**
+   * Function to resolve a module name (e.g. `dw::core::Strings`) to its source code.
+   * If not provided, a default resolver will attempt to read from the local filesystem
+   * (replacing `::` with `/` and appending `.dwl`).
+   */
+  moduleResolver?: (moduleName: string) => string;
+}
+
 export function evaluate(
   source: string | AST.Program,
   context: Record<string, Value> = {},
+  options: EvaluateOptions = {},
 ): Value {
   const ast: AST.Program = typeof source === 'string'
     ? Parser.fromSource(source).parse()
@@ -727,22 +737,84 @@ export function evaluate(
   const globalEnv = new Environment(null, { ...STDLIB, ...context });
   const evaluator = new Evaluator();
 
-  if (ast.declarations) {
-    for (const decl of ast.declarations) {
+  function evalDeclarations(
+    declarations: AST.Declaration[],
+    env: Environment,
+    evaluator: Evaluator,
+    options: EvaluateOptions,
+  ) {
+    for (const decl of declarations) {
       if (decl.type === 'VariableDeclaration') {
-        const val = evaluator.eval(decl.value, globalEnv);
-        globalEnv.set(decl.name, val);
+        const val = evaluator.eval(decl.value, env);
+        env.set(decl.name, val);
       } else if (decl.type === 'FunctionDeclaration') {
         const fn: DWFunction = (...args: Value[]): Value => {
           const bindings: Record<string, Value> = {};
           decl.params.forEach((p, i) => {
             bindings[p.name] = args[i] ?? null;
           });
-          return evaluator.eval(decl.body, globalEnv.extend(bindings));
+          return evaluator.eval(decl.body, env.extend(bindings));
         };
-        globalEnv.set(decl.name, fn);
+        env.set(decl.name, fn);
+      } else if (decl.type === 'ImportDeclaration') {
+        let modSrc = '';
+        if (options.moduleResolver) {
+          modSrc = options.moduleResolver(decl.moduleName);
+        } else {
+          // Default resolver using Deno
+          const path = decl.moduleName.replace(/::/g, '/') + '.dwl';
+          try {
+            modSrc = Deno.readTextFileSync(path);
+          } catch (e) {
+            throw new Error(
+              `Failed to resolve module ${decl.moduleName} at ${path}: ${
+                (e as Error).message
+              }`,
+            );
+          }
+        }
+
+        const modAst = Parser.fromSource(modSrc).parse();
+        const modEnv = new Environment(null, { ...STDLIB });
+        if (modAst.declarations) {
+          evalDeclarations(modAst.declarations, modEnv, evaluator, options);
+        }
+
+        if (decl.imports === '*') {
+          for (const [key, value] of Object.entries(modEnv.exportStore())) {
+            // Don't leak stdlib
+            if (!(key in STDLIB)) {
+              env.set(key, value);
+            }
+          }
+        } else if (decl.imports === 'namespace') {
+          const modNameParts = decl.moduleName.split('::');
+          const localName = modNameParts[modNameParts.length - 1];
+          const nsObject: DWObject = {};
+          for (const [key, value] of Object.entries(modEnv.exportStore())) {
+            if (!(key in STDLIB)) {
+              nsObject[key] = value;
+            }
+          }
+          env.set(localName, nsObject);
+        } else {
+          for (const imp of decl.imports) {
+            try {
+              const val = modEnv.get(imp.name);
+              env.set(imp.alias || imp.name, val);
+            } catch {
+              throw new Error(
+                `Module ${decl.moduleName} does not export ${imp.name}`,
+              );
+            }
+          }
+        }
       }
     }
+  }
+
+  if (ast.declarations) {
+    evalDeclarations(ast.declarations, globalEnv, evaluator, options);
   }
 
   return evaluator.eval(ast.body, globalEnv);

@@ -80,6 +80,11 @@ them from the project root:
   ```bash
   deno run --allow-read examples/date-math/run.ts
   ```
+- **Module System (import):** Import functions and variables from other `.dwl`
+  files.
+  ```bash
+  deno run --allow-read examples/modules/run.ts
+  ```
 - **CSV to XML (CLI):** Transform CSV to XML directly via the CLI.
   ```bash
   deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml

@@ -35,6 +35,8 @@ export enum TokenType {
   CASE = 'CASE',
   IS = 'IS',
   TO = 'TO',
+  IMPORT = 'IMPORT',
+  FROM = 'FROM',
 
   // ── Operators ─────────────────────────────────────────────
   DOT = 'DOT', // .
@@ -42,6 +44,7 @@ export enum TokenType {
   ARROW = 'ARROW', // ->
   FAT_ARROW = 'FAT_ARROW', // =>
   COLON = 'COLON', // :
+  DOUBLE_COLON = 'DOUBLE_COLON', // ::
   COMMA = 'COMMA', // ,
   SEMICOLON = 'SEMICOLON', // ;
   PIPE = 'PIPE', // |>
@@ -103,6 +106,8 @@ export const KEYWORDS: Record<string, TokenType> = {
   case: TokenType.CASE,
   is: TokenType.IS,
   to: TokenType.TO,
+  import: TokenType.IMPORT,
+  from: TokenType.FROM,
   '$': TokenType.DOLLAR,
   '$$': TokenType.DOUBLE_DOLLAR,
   true: TokenType.BOOLEAN,

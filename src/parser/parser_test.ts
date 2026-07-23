@@ -474,6 +474,38 @@ f(x)`;
   assertEquals(prog.body.type, 'CallExpression');
 });
 
+Deno.test('Parser: import declarations', () => {
+  const src = `%dw 2.0
+import * from dw::core::Strings
+import upper, lower from dw::core::Strings
+import myFunc as fn from custom::Utils
+import dw::core::Arrays
+---
+payload`;
+  const prog = Parser.fromSource(src).parse();
+  assertEquals(prog.declarations.length, 4);
+
+  const d1 = prog.declarations[0] as AST.ImportDeclaration;
+  assertEquals(d1.type, 'ImportDeclaration');
+  assertEquals(d1.moduleName, 'dw::core::Strings');
+  assertEquals(d1.imports, '*');
+
+  const d2 = prog.declarations[1] as AST.ImportDeclaration;
+  assertEquals(d2.moduleName, 'dw::core::Strings');
+  assertEquals(d2.imports, [{ name: 'upper', alias: undefined }, {
+    name: 'lower',
+    alias: undefined,
+  }]);
+
+  const d3 = prog.declarations[2] as AST.ImportDeclaration;
+  assertEquals(d3.moduleName, 'custom::Utils');
+  assertEquals(d3.imports, [{ name: 'myFunc', alias: 'fn' }]);
+
+  const d4 = prog.declarations[3] as AST.ImportDeclaration;
+  assertEquals(d4.moduleName, 'dw::core::Arrays');
+  assertEquals(d4.imports, 'namespace');
+});
+
 Deno.test('Parser: temporal literal', () => {
   const prog = Parser.fromSource('|2024-01-15| + |P1D|').parse();
   assertEquals(prog.type, 'Program');

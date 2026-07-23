@@ -35,7 +35,8 @@ export type NodeType =
   | 'MatchExpression'
   | 'AnonymousArgExpression'
   | 'DynamicExpansion'
-  | 'TemporalLiteral';
+  | 'TemporalLiteral'
+  | 'ImportDeclaration';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
 
@@ -301,10 +302,17 @@ export interface TypeDeclaration extends BaseNode {
   definition: string; // Stored raw representation of type for now
 }
 
+export interface ImportDeclaration extends BaseNode {
+  type: 'ImportDeclaration';
+  moduleName: string;
+  imports: '*' | 'namespace' | { name: string; alias?: string }[];
+}
+
 export type Declaration =
   | VariableDeclaration
   | FunctionDeclaration
-  | TypeDeclaration;
+  | TypeDeclaration
+  | ImportDeclaration;
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 

@@ -576,3 +576,50 @@ Deno.test('Evaluator: temporal math with ISO 8601 literals', () => {
     addTime: '2024-01-15T12:30:00',
   });
 });
+
+Deno.test('Evaluator: import modules', () => {
+  const mockResolver = (moduleName: string) => {
+    if (moduleName === 'dw::core::Strings') {
+      return `
+%dw 2.0
+fun upperStr(s) = "UPPER"
+fun lowerStr(s) = "lower"
+---
+null
+      `;
+    }
+    if (moduleName === 'custom::Utils') {
+      return `
+%dw 2.0
+var x = 42
+fun mul(a, b) = a * b
+---
+null
+      `;
+    }
+    throw new Error('Unknown module: ' + moduleName);
+  };
+
+  const src1 = `
+%dw 2.0
+import * from dw::core::Strings
+---
+upperStr("test")
+  `;
+  assertEquals(evaluate(src1, {}, { moduleResolver: mockResolver }), 'UPPER');
+
+  const src2 = `
+%dw 2.0
+import mul as multiply from custom::Utils
+---
+multiply(2, 3)
+  `;
+  assertEquals(evaluate(src2, {}, { moduleResolver: mockResolver }), 6);
+  const src3 = `
+%dw 2.0
+import custom::Utils
+---
+Utils::mul(2, 3)
+  `;
+  assertEquals(evaluate(src3, {}, { moduleResolver: mockResolver }), 6);
+});

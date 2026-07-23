@@ -65,6 +65,15 @@ export class Environment {
     this.store.set(name, value);
   }
 
+  /** Gets all local bindings in this scope (used for module exports). */
+  exportStore(): Record<string, Value> {
+    const exports: Record<string, Value> = {};
+    for (const [k, v] of this.store.entries()) {
+      exports[k] = v;
+    }
+    return exports;
+  }
+
   /**
    * Create a child scope that inherits from this one and has the
    * given extra bindings (used when calling arrow functions).
