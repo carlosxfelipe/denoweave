@@ -151,6 +151,7 @@ header {
   border: none;
   transition: all .18s ease;
   white-space: nowrap;
+  text-decoration: none;
 }
 
 .btn-primary {

@@ -27,6 +27,23 @@ add the following to your `.vscode/settings.json`:
 
 ## Quick Start
 
+### Interactive Playground
+
+DenoWeave includes a built-in interactive web playground that lets you write
+transformations, edit payloads, and see the results live in your browser.
+
+```bash
+deno task playground
+```
+
+This will start a local server at `http://localhost:8787/`. The playground
+features syntax highlighting, automatic evaluation, and a collection of built-in
+examples to help you get started.
+
+---
+
+### Command Line Usage
+
 No install needed — run directly from the source:
 
 ```bash
