@@ -623,3 +623,119 @@ Utils::mul(2, 3)
   `;
   assertEquals(evaluate(src3, {}, { moduleResolver: mockResolver }), 6);
 });
+
+// ── Type declarations with runtime validation ────────────────────────────────
+
+Deno.test('Evaluator: type constraint validation on as expressions', () => {
+  const header = `%dw 2.0
+type PositiveNumber = Number { minimum: 0 }
+---
+`;
+  assertEquals(evaluate(header + '5 as PositiveNumber'), 5);
+  assertEquals(evaluate(header + '"7" as PositiveNumber'), 7);
+  assertThrows(
+    () => evaluate(header + '(-5) as PositiveNumber'),
+    RuntimeError,
+    'minimum',
+  );
+});
+
+Deno.test('Evaluator: string type constraints (minLength, pattern)', () => {
+  const header = `%dw 2.0
+type Sku = String { minLength: 3, pattern: "^[A-Z]+$" }
+---
+`;
+  assertEquals(evaluate(header + '"ABC" as Sku'), 'ABC');
+  assertThrows(
+    () => evaluate(header + '"AB" as Sku'),
+    RuntimeError,
+    'minLength',
+  );
+  assertThrows(
+    () => evaluate(header + '"abc" as Sku'),
+    RuntimeError,
+    'pattern',
+  );
+});
+
+Deno.test('Evaluator: type alias chain resolves and validates', () => {
+  const src = `%dw 2.0
+type PositiveNumber = Number { minimum: 0 }
+type Score = PositiveNumber { maximum: 100 }
+---
+`;
+  assertEquals(evaluate(src + '50 as Score'), 50);
+  assertThrows(() => evaluate(src + '150 as Score'), RuntimeError, 'maximum');
+  assertThrows(() => evaluate(src + '(-1) as Score'), RuntimeError, 'minimum');
+});
+
+Deno.test('Evaluator: function param type validation (built-in types)', () => {
+  const src = `%dw 2.0
+fun double(x: Number) = x * 2
+---
+`;
+  assertEquals(evaluate(src + 'double(21)'), 42);
+  assertThrows(
+    () => evaluate(src + 'double("hi")'),
+    RuntimeError,
+    'expects Number',
+  );
+});
+
+Deno.test('Evaluator: function param type validation (custom types)', () => {
+  const src = `%dw 2.0
+type PositiveNumber = Number { minimum: 0 }
+fun sqrtOf(n: PositiveNumber) = sqrt(n)
+---
+`;
+  assertEquals(evaluate(src + 'sqrtOf(16)'), 4);
+  assertThrows(
+    () => evaluate(src + 'sqrtOf(-16)'),
+    RuntimeError,
+    'minimum',
+  );
+  assertThrows(
+    () => evaluate(src + 'sqrtOf("16")'),
+    RuntimeError,
+    'expects PositiveNumber',
+  );
+});
+
+// ── Runtime errors with source position ──────────────────────────────────────
+
+Deno.test('Evaluator: runtime errors carry source line/column', () => {
+  const err = assertThrows(
+    () => evaluate('1 +\n2 / 0'),
+    RuntimeError,
+    'Division by zero',
+  );
+  assertEquals(err.line, 2);
+  assertEquals(err.message.startsWith('[2:'), true);
+});
+
+Deno.test('Evaluator: property access error includes position', () => {
+  const err = assertThrows(
+    () => evaluate('payload.foo.bar', { payload: {} }),
+    RuntimeError,
+    'Cannot access property "bar"',
+  );
+  assertEquals(err.line, 1);
+  assertEquals(err.column, 1);
+});
+
+Deno.test('Evaluator: param type violation includes call-site line', () => {
+  const src = `%dw 2.0
+fun double(x: Number) = x * 2
+---
+double("hi")`;
+  const err = assertThrows(() => evaluate(src), RuntimeError, 'expects Number');
+  assertEquals(err.line, 4);
+});
+
+Deno.test('Evaluator: params without annotations remain unchecked', () => {
+  const src = `%dw 2.0
+fun id(x) = x
+---
+id("anything")`;
+  assertEquals(evaluate(src), 'anything');
+});

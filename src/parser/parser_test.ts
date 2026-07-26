@@ -474,6 +474,30 @@ f(x)`;
   assertEquals(prog.body.type, 'CallExpression');
 });
 
+Deno.test('Parser: structured type declaration with constraints', () => {
+  const src = `%dw 2.0
+type PositiveNumber = Number { minimum: 0 }
+type Name = String
+fun f(x: PositiveNumber, y) = x
+---
+f(1, 2)`;
+  const prog = Parser.fromSource(src).parse();
+
+  const t1 = prog.declarations[0] as AST.TypeDeclaration;
+  assertEquals(t1.type, 'TypeDeclaration');
+  assertEquals(t1.name, 'PositiveNumber');
+  assertEquals(t1.baseType, 'Number');
+  assertEquals(t1.constraints?.type, 'ObjectExpression');
+
+  const t2 = prog.declarations[1] as AST.TypeDeclaration;
+  assertEquals(t2.baseType, 'String');
+  assertEquals(t2.constraints, undefined);
+
+  const f = prog.declarations[2] as AST.FunctionDeclaration;
+  assertEquals(f.params[0].typeAnnotation, 'PositiveNumber');
+  assertEquals(f.params[1].typeAnnotation, undefined);
+});
+
 Deno.test('Parser: import declarations', () => {
   const src = `%dw 2.0
 import * from dw::core::Strings

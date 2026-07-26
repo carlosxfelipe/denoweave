@@ -194,16 +194,17 @@ export class Parser {
     const params: AST.Identifier[] = [];
     while (!this.check(TokenType.RPAREN) && !this.check(TokenType.EOF)) {
       const p = this.expect(TokenType.IDENT);
-      params.push({
+      const paramNode: AST.Identifier = {
         type: 'Identifier',
         name: p.value,
         line: p.line,
         column: p.column,
-      });
+      };
       if (this.check(TokenType.COLON)) {
         this.advance();
-        this.parseTypeAnnotation();
+        paramNode.typeAnnotation = this.parseTypeAnnotation();
       }
+      params.push(paramNode);
       if (this.check(TokenType.COMMA)) this.advance();
     }
     this.expect(TokenType.RPAREN);
@@ -227,6 +228,47 @@ export class Parser {
     const start = this.expect(TokenType.TYPE);
     const name = this.expect(TokenType.IDENT).value;
     this.expect(TokenType.ASSIGN);
+
+    // Try a structured parse first: `BaseType` optionally followed by a
+    // constraint object, e.g. `Number { minimum: 0 }`.
+    const savedPos = this.pos;
+    let baseType: string | undefined;
+    let constraints: AST.ObjectExpression | undefined;
+    if (this.check(TokenType.IDENT)) {
+      baseType = this.advance().value;
+      if (this.check(TokenType.LBRACE)) {
+        try {
+          constraints = this.parseObjectExpression();
+        } catch {
+          baseType = undefined;
+          constraints = undefined;
+          this.pos = savedPos;
+        }
+      }
+      if (baseType !== undefined && !this.atTypeDeclarationBoundary()) {
+        baseType = undefined;
+        constraints = undefined;
+        this.pos = savedPos;
+      }
+    }
+
+    if (baseType !== undefined) {
+      const def = this.tokens
+        .slice(savedPos, this.pos)
+        .map((t) => t.value)
+        .join(' ');
+      return {
+        type: 'TypeDeclaration',
+        name,
+        definition: def,
+        baseType,
+        constraints,
+        line: start.line,
+        column: start.column,
+      };
+    }
+
+    // Fallback: consume the raw definition tokens as before.
     let def = '';
     let braceCount = 0;
     while (!this.check(TokenType.EOF)) {
@@ -252,6 +294,18 @@ export class Parser {
       line: start.line,
       column: start.column,
     };
+  }
+
+  /** True when the current token can follow a complete type declaration. */
+  private atTypeDeclarationBoundary(): boolean {
+    return (
+      this.check(TokenType.EOF) ||
+      this.check(TokenType.VAR) ||
+      this.check(TokenType.FUN) ||
+      this.check(TokenType.TYPE) ||
+      this.check(TokenType.IMPORT) ||
+      this.check(TokenType.HEADER_SEPARATOR)
+    );
   }
 
   private parseImportDeclaration(): AST.ImportDeclaration {
@@ -326,8 +380,9 @@ export class Parser {
     };
   }
 
-  private parseTypeAnnotation(): void {
+  private parseTypeAnnotation(): string | undefined {
     let braceCount = 0;
+    let typeName: string | undefined;
     while (!this.check(TokenType.EOF)) {
       const tok = this.peek();
       if (
@@ -340,8 +395,12 @@ export class Parser {
       }
       if (tok.type === TokenType.LBRACE) braceCount++;
       if (tok.type === TokenType.RBRACE) braceCount--;
+      if (typeName === undefined && tok.type === TokenType.IDENT) {
+        typeName = tok.value;
+      }
       this.advance();
     }
+    return typeName;
   }
 
   // ── Precedence levels (low → high) ─────────────────────────────────────
@@ -354,9 +413,15 @@ export class Parser {
   private parsePipe(): AST.Expression {
     let left = this.parseDefault();
     while (this.check(TokenType.PIPE)) {
-      this.advance();
+      const op = this.advance();
       const right = this.parseDefault();
-      left = { type: 'PipeExpression', left, right };
+      left = {
+        type: 'PipeExpression',
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -364,9 +429,15 @@ export class Parser {
   private parseDefault(): AST.Expression {
     let left = this.parseInfix();
     while (this.check(TokenType.DEFAULT)) {
-      this.advance();
+      const op = this.advance();
       const right = this.parseInfix();
-      left = { type: 'DefaultExpression', expression: left, alternate: right };
+      left = {
+        type: 'DefaultExpression',
+        expression: left,
+        alternate: right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -385,17 +456,37 @@ export class Parser {
       const lambda = this.parseLambda();
 
       if (op.type === TokenType.MAP) {
-        left = { type: 'MapExpression', source: left, lambda };
+        left = {
+          type: 'MapExpression',
+          source: left,
+          lambda,
+          line: op.line,
+          column: op.column,
+        };
       } else if (op.type === TokenType.FILTER) {
-        left = { type: 'FilterExpression', source: left, lambda };
+        left = {
+          type: 'FilterExpression',
+          source: left,
+          lambda,
+          line: op.line,
+          column: op.column,
+        };
       } else if (op.type === TokenType.REDUCE) {
-        left = { type: 'ReduceExpression', source: left, lambda };
+        left = {
+          type: 'ReduceExpression',
+          source: left,
+          lambda,
+          line: op.line,
+          column: op.column,
+        };
       } else {
         left = {
           type: 'InfixFunctionExpression',
           name: op.value,
           source: left,
           lambda,
+          line: op.line,
+          column: op.column,
         };
       }
     }
@@ -436,7 +527,14 @@ export class Parser {
     while (this.check(TokenType.AND) || this.check(TokenType.OR)) {
       const op = this.advance();
       const right = this.parseComparison();
-      left = { type: 'BinaryExpression', operator: op.value, left, right };
+      left = {
+        type: 'BinaryExpression',
+        operator: op.value,
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -454,7 +552,14 @@ export class Parser {
     ) {
       const op = this.advance();
       const right = this.parseRange();
-      left = { type: 'BinaryExpression', operator: op.value, left, right };
+      left = {
+        type: 'BinaryExpression',
+        operator: op.value,
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -465,7 +570,14 @@ export class Parser {
     while (this.check(TokenType.TO)) {
       const op = this.advance();
       const right = this.parseAdditive();
-      left = { type: 'BinaryExpression', operator: op.value, left, right };
+      left = {
+        type: 'BinaryExpression',
+        operator: op.value,
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -480,7 +592,14 @@ export class Parser {
     ) {
       const op = this.advance();
       const right = this.parseMultiplicative();
-      left = { type: 'BinaryExpression', operator: op.value, left, right };
+      left = {
+        type: 'BinaryExpression',
+        operator: op.value,
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -491,7 +610,14 @@ export class Parser {
     while (this.check(TokenType.STAR) || this.check(TokenType.SLASH)) {
       const op = this.advance();
       const right = this.parseUnary();
-      left = { type: 'BinaryExpression', operator: op.value, left, right };
+      left = {
+        type: 'BinaryExpression',
+        operator: op.value,
+        left,
+        right,
+        line: op.line,
+        column: op.column,
+      };
     }
     return left;
   }
@@ -504,14 +630,18 @@ export class Parser {
         type: 'UnaryExpression',
         operator: op.value,
         operand: this.parseUnary(),
+        line: op.line,
+        column: op.column,
       };
     }
     if (this.check(TokenType.MINUS)) {
-      this.advance();
+      const op = this.advance();
       return {
         type: 'UnaryExpression',
         operator: '-',
         operand: this.parseUnary(),
+        line: op.line,
+        column: op.column,
       };
     }
     return this.parsePostfix();
@@ -549,15 +679,27 @@ export class Parser {
           column: expr.column,
         };
       } else if (this.check(TokenType.LBRACKET)) {
-        this.advance();
+        const open = this.advance();
         const index = this.parseExpression();
         this.expect(TokenType.RBRACKET);
-        expr = { type: 'IndexExpression', object: expr, index };
+        expr = {
+          type: 'IndexExpression',
+          object: expr,
+          index,
+          line: expr.line ?? open.line,
+          column: expr.column ?? open.column,
+        };
       } else if (this.check(TokenType.LPAREN)) {
-        this.advance();
+        const open = this.advance();
         const args = this.parseArgList(TokenType.RPAREN);
         this.expect(TokenType.RPAREN);
-        expr = { type: 'CallExpression', callee: expr, arguments: args };
+        expr = {
+          type: 'CallExpression',
+          callee: expr,
+          arguments: args,
+          line: expr.line ?? open.line,
+          column: expr.column ?? open.column,
+        };
       } else if (this.check(TokenType.AS)) {
         const start = this.advance();
         const targetType = this.expect(TokenType.IDENT).value;

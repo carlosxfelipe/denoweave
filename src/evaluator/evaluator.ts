@@ -11,20 +11,63 @@ import { STDLIB } from '../stdlib/index.ts';
 // ── Runtime error ─────────────────────────────────────────────────────────────
 
 export class RuntimeError extends Error {
-  constructor(message: string) {
+  /** Source line (1-indexed) where the error originated, when known. */
+  line?: number;
+  /** Source column (1-indexed) where the error originated, when known. */
+  column?: number;
+
+  constructor(message: string, line?: number, column?: number) {
     super(`RuntimeError: ${message}`);
     this.name = 'RuntimeError';
+    if (line !== undefined) this.attachPosition(line, column);
+  }
+
+  /** Prefix the message with `[line:column]` once, keeping the position. */
+  attachPosition(line: number, column?: number): void {
+    if (this.line !== undefined) return;
+    this.line = line;
+    this.column = column;
+    this.message = `[${line}:${column ?? '?'}] ${this.message}`;
   }
 }
 
 // ── Core evaluator (tree-walker) ──────────────────────────────────────────────
 
 class Evaluator {
+  /** Registered `type` declarations, e.g. `type PositiveNumber = Number { minimum: 0 }`. */
+  private typeRegistry = new Map<
+    string,
+    { baseType: string; constraints?: DWObject }
+  >();
+
+  /** Register a declared type so `as` casts and param checks can enforce it. */
+  registerType(name: string, baseType: string, constraints?: DWObject): void {
+    this.typeRegistry.set(name, { baseType, constraints });
+  }
+
   /**
    * Recursively evaluate an AST Expression node in the given environment.
    * Returns the runtime Value it produces.
+   *
+   * RuntimeErrors bubbling up without a source position are tagged with the
+   * position of the innermost node that has one.
    */
   eval(node: AST.Expression, env: Environment): Value {
+    try {
+      return this.evalNode(node, env);
+    } catch (e) {
+      if (
+        e instanceof RuntimeError &&
+        e.line === undefined &&
+        node.line !== undefined
+      ) {
+        e.attachPosition(node.line, node.column);
+      }
+      throw e;
+    }
+  }
+
+  private evalNode(node: AST.Expression, env: Environment): Value {
     switch (node.type) {
       // ─────────────────────────────────────────────────────────────────────
       // Leaves
@@ -354,28 +397,10 @@ class Evaluator {
 
       case 'AsExpression': {
         const val = this.eval(node.expression, env);
-        const target = node.targetType;
-        if (target === 'String') {
-          if (node.properties) {
-            const props = this.eval(node.properties, env) as DWObject;
-            if (val instanceof Date) {
-              const fmt = String(props['format'] ?? 'yyyy-MM-dd HH:mm:ss');
-              return this.formatDate(val, fmt);
-            }
-          }
-          if (val === null || val === undefined) return '';
-          if (val instanceof Date) return val.toISOString();
-          if (typeof val === 'object') return JSON.stringify(val);
-          return String(val);
-        }
-        if (target === 'Number') {
-          const num = Number(val);
-          return isNaN(num) ? 0 : num;
-        }
-        if (target === 'Boolean') {
-          return Boolean(val);
-        }
-        return val;
+        const props = node.properties
+          ? (this.eval(node.properties, env) as DWObject)
+          : undefined;
+        return this.castValue(val, node.targetType, props);
       }
 
       case 'AnonymousArgExpression':
@@ -396,7 +421,16 @@ class Evaluator {
             const fn: DWFunction = (...args: Value[]): Value => {
               const bindings: Record<string, Value> = {};
               decl.params.forEach((p, i) => {
-                bindings[p.name] = args[i] ?? null;
+                const val = args[i] ?? null;
+                if (p.typeAnnotation) {
+                  this.validateParamType(
+                    val,
+                    p.typeAnnotation,
+                    p.name,
+                    decl.name,
+                  );
+                }
+                bindings[p.name] = val;
               });
               return this.eval(decl.body, doEnv.extend(bindings));
             };
@@ -676,6 +710,179 @@ class Evaluator {
     }
   }
 
+  // ── Type casting & runtime validation ────────────────────────────────────
+
+  /** Cast a value to a target type, enforcing declared type constraints. */
+  private castValue(val: Value, target: string, props?: DWObject): Value {
+    if (this.typeRegistry.has(target)) {
+      const { baseType, constraintsChain } = this.resolveType(target);
+      const result = this.castValue(val, baseType, props);
+      for (const constraints of constraintsChain) {
+        this.validateConstraints(result, constraints, target);
+      }
+      return result;
+    }
+    if (target === 'String') {
+      if (props && val instanceof Date) {
+        const fmt = String(props['format'] ?? 'yyyy-MM-dd HH:mm:ss');
+        return this.formatDate(val, fmt);
+      }
+      if (val === null || val === undefined) return '';
+      if (val instanceof Date) return val.toISOString();
+      if (typeof val === 'object') return JSON.stringify(val);
+      return String(val);
+    }
+    if (target === 'Number') {
+      const num = Number(val);
+      return isNaN(num) ? 0 : num;
+    }
+    if (target === 'Boolean') {
+      return Boolean(val);
+    }
+    return val;
+  }
+
+  /**
+   * Resolve a type name through the registry, following aliases to a base
+   * type and collecting every constraint object along the chain.
+   */
+  private resolveType(
+    name: string,
+  ): { baseType: string; constraintsChain: DWObject[] } {
+    const constraintsChain: DWObject[] = [];
+    const seen = new Set<string>();
+    let current = name;
+    while (this.typeRegistry.has(current)) {
+      if (seen.has(current)) {
+        throw new RuntimeError(`Circular type definition: "${current}"`);
+      }
+      seen.add(current);
+      const info = this.typeRegistry.get(current)!;
+      if (info.constraints) constraintsChain.push(info.constraints);
+      current = info.baseType;
+    }
+    return { baseType: current, constraintsChain };
+  }
+
+  /**
+   * Validate a function argument against its declared param type.
+   * Throws a RuntimeError when the value does not conform.
+   */
+  validateParamType(
+    val: Value,
+    typeName: string,
+    paramName: string,
+    fnName: string,
+  ): void {
+    const { baseType, constraintsChain } = this.resolveType(typeName);
+    if (this.matchesBaseType(val, baseType) === false) {
+      throw new RuntimeError(
+        `${fnName}: parameter "${paramName}" expects ${typeName}, got ${
+          this.describeType(val)
+        }`,
+      );
+    }
+    for (const constraints of constraintsChain) {
+      this.validateConstraints(val, constraints, typeName);
+    }
+  }
+
+  /**
+   * Check a value against a built-in base type name.
+   * Returns null for unknown type names (no check possible).
+   */
+  private matchesBaseType(val: Value, base: string): boolean | null {
+    switch (base) {
+      case 'String':
+        return typeof val === 'string';
+      case 'Number':
+        return typeof val === 'number';
+      case 'Boolean':
+        return typeof val === 'boolean';
+      case 'Array':
+        return Array.isArray(val);
+      case 'Object':
+        return val !== null && typeof val === 'object' && !Array.isArray(val);
+      case 'Null':
+        return val === null;
+      case 'Any':
+        return true;
+      default:
+        return null;
+    }
+  }
+
+  private describeType(val: Value): string {
+    if (val === null || val === undefined) return 'Null';
+    if (Array.isArray(val)) return 'Array';
+    if (typeof val === 'string') return 'String';
+    if (typeof val === 'number') return 'Number';
+    if (typeof val === 'boolean') return 'Boolean';
+    if (typeof val === 'function') return 'Function';
+    return 'Object';
+  }
+
+  /** Enforce basic constraints: minimum/maximum, minLength/maxLength, pattern. */
+  private validateConstraints(
+    val: Value,
+    constraints: DWObject,
+    typeName: string,
+  ): void {
+    for (const [key, expected] of Object.entries(constraints)) {
+      switch (key) {
+        case 'minimum':
+          if (typeof val === 'number' && val < Number(expected)) {
+            throw new RuntimeError(
+              `Type ${typeName}: value ${val} violates constraint minimum: ${expected}`,
+            );
+          }
+          break;
+        case 'maximum':
+          if (typeof val === 'number' && val > Number(expected)) {
+            throw new RuntimeError(
+              `Type ${typeName}: value ${val} violates constraint maximum: ${expected}`,
+            );
+          }
+          break;
+        case 'minLength': {
+          const len = typeof val === 'string' || Array.isArray(val)
+            ? val.length
+            : null;
+          if (len !== null && len < Number(expected)) {
+            throw new RuntimeError(
+              `Type ${typeName}: length ${len} violates constraint minLength: ${expected}`,
+            );
+          }
+          break;
+        }
+        case 'maxLength': {
+          const len = typeof val === 'string' || Array.isArray(val)
+            ? val.length
+            : null;
+          if (len !== null && len > Number(expected)) {
+            throw new RuntimeError(
+              `Type ${typeName}: length ${len} violates constraint maxLength: ${expected}`,
+            );
+          }
+          break;
+        }
+        case 'pattern':
+          if (
+            typeof val === 'string' &&
+            !new RegExp(String(expected)).test(val)
+          ) {
+            throw new RuntimeError(
+              `Type ${typeName}: value "${val}" violates constraint pattern: ${expected}`,
+            );
+          }
+          break;
+        default:
+          // Unknown constraint keys are ignored.
+          break;
+      }
+    }
+  }
+
   private formatDate(date: Date, fmt: string): string {
     const pad = (n: number) => String(n).padStart(2, '0');
     const yyyy = date.getFullYear();
@@ -751,11 +958,27 @@ export function evaluate(
         const fn: DWFunction = (...args: Value[]): Value => {
           const bindings: Record<string, Value> = {};
           decl.params.forEach((p, i) => {
-            bindings[p.name] = args[i] ?? null;
+            const val = args[i] ?? null;
+            if (p.typeAnnotation) {
+              evaluator.validateParamType(
+                val,
+                p.typeAnnotation,
+                p.name,
+                decl.name,
+              );
+            }
+            bindings[p.name] = val;
           });
           return evaluator.eval(decl.body, env.extend(bindings));
         };
         env.set(decl.name, fn);
+      } else if (decl.type === 'TypeDeclaration') {
+        if (decl.baseType) {
+          const constraints = decl.constraints
+            ? (evaluator.eval(decl.constraints, env) as DWObject)
+            : undefined;
+          evaluator.registerType(decl.name, decl.baseType, constraints);
+        }
       } else if (decl.type === 'ImportDeclaration') {
         let modSrc = '';
         if (options.moduleResolver) {

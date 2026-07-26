@@ -55,6 +55,8 @@ export interface Identifier extends BaseNode {
   type: 'Identifier';
   name: string;
   defaultValue?: Expression;
+  /** Type annotation for function params, e.g. `qty: Number` */
+  typeAnnotation?: string;
 }
 
 /** A constant value: `42`, `"hello"`, `true`, `null` */
@@ -300,6 +302,10 @@ export interface TypeDeclaration extends BaseNode {
   type: 'TypeDeclaration';
   name: string;
   definition: string; // Stored raw representation of type for now
+  /** Base type name when the definition is structured, e.g. `Number` */
+  baseType?: string;
+  /** Constraint object, e.g. `{ minimum: 0 }` */
+  constraints?: ObjectExpression;
 }
 
 export interface ImportDeclaration extends BaseNode {
