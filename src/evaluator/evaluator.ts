@@ -589,6 +589,11 @@ class Evaluator {
   // ── Binary operator dispatch ──────────────────────────────────────────────
 
   private applyBinaryOp(op: string, left: Value, right: Value): Value {
+    const mathOps = ['+', '-', '*', '/', '<', '<=', '>', '>='];
+    if (mathOps.includes(op) && (left === null || right === null)) {
+      throw new RuntimeError(`Cannot perform ${op} on Null`);
+    }
+
     switch (op) {
       // Arithmetic / string concatenation
       case '+': {

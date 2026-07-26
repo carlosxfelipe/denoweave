@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DenoWeave Playground — Live DataWeave Sandbox</title>
+    <meta name="description"
+      content="Interactive DataWeave playground powered by DenoWeave. Write and run DataWeave transformations live in your browser." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- ── Header ────────────────────────────────────────────────────────────── -->
+      <header>
+        <a href="https://github.com/carlosxfelipe/denoweave" target="_blank"
+          class="header-brand">
+          <div class="brand-logo">🦕</div>
+          <span class="brand-name">DenoWeave</span>
+          <span class="brand-badge">Playground</span>
+        </a>
+
+        <div class="header-center">
+          <span style="font-size:11px;color:var(--text-muted)">Examples:</span>
+          <select id="exampleSelect" class="example-select"
+            aria-label="Load example">
+            <option value="">— choose —</option>
+          </select>
+        </div>
+
+        <div class="header-actions">
+          <span class="shortcut-hint"
+            style="margin-right:4px"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span>
+          <button id="runBtn" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run
+          </button>
+          <a href="https://github.com/carlosxfelipe/denoweave" target="_blank"
+            class="btn btn-ghost" id="githubLink">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        GitHub
+      </a>
+        </div>
+      </header>
+
+      <!-- ── Workspace ──────────────────────────────────────────────────────────── -->
+      <div class="workspace">
+        <!-- Transform editor -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">
+          <span class="panel-dot"></span>
+          DataWeave Script
+        </span>
+            <span
+              style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">transform.dwl</span>
+          </div>
+          <div class="panel-body">
+            <div id="transformEditor" class="editor-container"></div>
+          </div>
+        </div>
+
+        <!-- Payload (middle) -->
+        <div class="panel panel-middle">
+          <div class="panel-header">
+            <span class="panel-title">
+              <span class="panel-dot" style="background:var(--accent2)"></span>
+              Payload (JSON)
+            </span>
+          </div>
+          <div class="panel-body">
+            <div id="payloadEditor" class="editor-container"></div>
+          </div>
+        </div>
+
+        <!-- Output -->
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title" id="outputTitle">
+          <span class="panel-dot" style="background:var(--success)"></span>
+          Output
+        </span>
+            <button id="copyBtn" class="btn btn-ghost"
+              style="padding:3px 8px;font-size:11px;display:none"
+              title="Copy output">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+          </div>
+          <div class="panel-body">
+            <div id="outputContainer" class="output-container">
+              <div class="output-placeholder">
+                <div class="output-placeholder-icon">⚡</div>
+                <div
+                  class="output-placeholder-text">Run your script to see results</div>
+              </div>
+            </div>
+            <div id="outputEditor" class="editor-container"
+              style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Status bar ─────────────────────────────────────────────────────────── -->
+      <div class="status-bar">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText" class="status-text">Ready</span>
+        <span id="statusTime" class="status-time"></span>
+      </div>
+    </div>
+
+    <!-- ── Monaco Editor via CDN ──────────────────────────────────────────────── -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
+    <script>
+    // ── Monaco setup ─────────────────────────────────────────────────────────────
+    require.config({
+      paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
+    });
+
+    require(['vs/editor/editor.main'], function () {
+      // ── Register a minimal DataWeave language for syntax highlighting ──────────
+      monaco.languages.register({ id: 'dataweave' });
+      monaco.languages.setMonarchTokensProvider('dataweave', {
+        keywords: [
+          '%dw',
+          'output',
+          'var',
+          'fun',
+          'type',
+          'import',
+          'from',
+          'as',
+          'if',
+          'else',
+          'do',
+          'match',
+          'case',
+          'default',
+          'using',
+          'null',
+          'true',
+          'false',
+          'not',
+          'and',
+          'or',
+          'is',
+          'in',
+          'map',
+          'filter',
+          'reduce',
+          'groupBy',
+          'orderBy',
+          'distinctBy',
+          'flatMap',
+          'pluck',
+          'mapObject',
+          'filterObject',
+          'update',
+          'replace',
+          'when',
+          'unless',
+        ],
+        tokenizer: {
+          root: [
+            [/%dw\s+[\d.]+/, 'keyword'],
+            [/\/\/.*$/, 'comment'],
+            [/---/, 'delimiter'],
+            [/"(?:[^"\\]|\\.)*"/, 'string'],
+            [/\|[^|]+\|/, 'string.temporal'],
+            [/\b(true|false|null)\b/, 'constant'],
+            [/\b\d+(\.\d+)?\b/, 'number'],
+            [
+              /\b(var|fun|type|output|import|from|as|if|else|do|match|case|default|using)\b/,
+              'keyword',
+            ],
+            [
+              /\b(map|filter|reduce|groupBy|orderBy|flatMap|pluck|mapObject|filterObject|distinctBy|update)\b/,
+              'keyword.operator',
+            ],
+            [/[a-zA-Z_$][\w$]*(?=\s*\()/, 'entity.name.function'],
+            [/[a-zA-Z_$][\w$.]*/, 'identifier'],
+            [/[=><!~?:&|+\-*\/\^%]+/, 'operator'],
+            [/[{}()\[\]]/, 'delimiter.bracket'],
+          ],
+        },
+      });
+
+      monaco.languages.setLanguageConfiguration('dataweave', {
+        comments: { lineComment: '//' },
+        brackets: [['{', '}'], ['[', ']'], ['(', ')']],
+        autoClosingPairs: [
+          { open: '{', close: '}' },
+          { open: '[', close: ']' },
+          { open: '(', close: ')' },
+          { open: '"', close: '"' },
+        ],
+      });
+
+      // ── Theme ──────────────────────────────────────────────────────────────────
+      monaco.editor.defineTheme('denoweave-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [
+          { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
+          { token: 'keyword', foreground: 'c678dd' },
+          { token: 'keyword.operator', foreground: '56b6c2' },
+          { token: 'string', foreground: '98c379' },
+          { token: 'string.temporal', foreground: 'e5c07b' },
+          { token: 'number', foreground: 'd19a66' },
+          { token: 'constant', foreground: 'd19a66' },
+          { token: 'operator', foreground: 'abb2bf' },
+          { token: 'delimiter', foreground: 'e06c75', fontStyle: 'bold' },
+          { token: 'entity.name.function', foreground: '61afef' },
+          { token: 'identifier', foreground: 'abb2bf' },
+        ],
+        colors: {
+          'editor.background': '#0d0f1a',
+          'editor.foreground': '#abb2bf',
+          'editorLineNumber.foreground': '#3d4052',
+          'editorCursor.foreground': '#528bff',
+          'editor.selectionBackground': '#1c2140',
+          'editor.lineHighlightBackground': '#131628',
+          'editorIndentGuide.background1': '#252940',
+          'editorGutter.background': '#0d0f1a',
+          'scrollbarSlider.background': '#252940',
+        },
+      });
+
+      monaco.editor.defineTheme('denoweave-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [
+          { token: 'comment', foreground: 'a0a1a7', fontStyle: 'italic' },
+          { token: 'keyword', foreground: 'a626a4' },
+          { token: 'keyword.operator', foreground: '0184bc' },
+          { token: 'string', foreground: '50a14f' },
+          { token: 'string.temporal', foreground: '986801' },
+          { token: 'number', foreground: '986801' },
+          { token: 'constant', foreground: '986801' },
+          { token: 'operator', foreground: '383a42' },
+          { token: 'delimiter', foreground: 'e45649', fontStyle: 'bold' },
+          { token: 'entity.name.function', foreground: '4078f2' },
+          { token: 'identifier', foreground: '383a42' },
+        ],
+        colors: {
+          'editor.background': '#ffffff',
+          'editor.foreground': '#383a42',
+          'editorLineNumber.foreground': '#9d9d9f',
+          'editorCursor.foreground': '#526fff',
+          'editor.selectionBackground': '#e5e5e6',
+          'editor.lineHighlightBackground': '#f3f3f4',
+          'editorIndentGuide.background1': '#e4e4e4',
+          'editorGutter.background': '#ffffff',
+          'scrollbarSlider.background': '#e4e4e4',
+        },
+      });
+
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+      const getTheme = () =>
+        prefersDark.matches ? 'denoweave-dark' : 'denoweave-light';
+
+      const editorOptions = {
+        theme: getTheme(),
+        fontSize: 13,
+        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        fontLigatures: true,
+        lineHeight: 22,
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        wordWrap: 'on',
+        padding: { top: 12, bottom: 12 },
+        renderLineHighlight: 'line',
+        lineDecorationsWidth: 0,
+        glyphMargin: false,
+        folding: true,
+        automaticLayout: true,
+      };
+
+      // Listen for system theme changes
+      prefersDark.addEventListener('change', () => {
+        monaco.editor.setTheme(getTheme());
+      });
+
+      // ── Create editors ─────────────────────────────────────────────────────────
+      const transformEditor = monaco.editor.create(
+        document.getElementById('transformEditor'),
+        {
+          ...editorOptions,
+          language: 'dataweave',
+          value:
+            '%dw 2.0\noutput application/json\n\n---\n{\n  message: "Hello DenoWeave!",\n  payload: payload\n}\n',
+        },
+      );
+
+      const payloadEditor = monaco.editor.create(
+        document.getElementById('payloadEditor'),
+        {
+          ...editorOptions,
+          language: 'json',
+          value: '{\n  "user": "Developer"\n}',
+          lineNumbers: 'off',
+        },
+      );
+
+      // ── Ctrl+Enter shortcut ────────────────────────────────────────────────────
+      [transformEditor, payloadEditor].forEach((ed) => {
+        ed.addCommand(
+          monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+          () => runScript(),
+        );
+      });
+
+      const outputEditor = monaco.editor.create(
+        document.getElementById('outputEditor'),
+        {
+          ...editorOptions,
+          readOnly: true,
+          language: 'json',
+          value: '',
+          lineNumbers: 'off',
+        },
+      );
+      window._outputEditor = outputEditor;
+      window._transformEditor = transformEditor;
+      window._payloadEditor = payloadEditor;
+      window._monacoReady = true;
+      if (window._pendingRun) runScript();
+    });
+
+    // ── Examples ──────────────────────────────────────────────────────────────────
+    let EXAMPLES = {};
+    fetch('/examples')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) return;
+        EXAMPLES = data;
+        const select = document.getElementById('exampleSelect');
+        for (const key of Object.keys(EXAMPLES)) {
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key.replace(/-/g, ' ').replace(
+            /\w/g,
+            (l) => l.toUpperCase(),
+          );
+          select.appendChild(opt);
+        }
+      })
+      .catch((err) => console.error('Failed to load examples:', err));
+
+    // ── Example selector ──────────────────────────────────────────────────────────
+    document.getElementById('exampleSelect').addEventListener(
+      'change',
+      function () {
+        const key = this.value;
+        if (!key || !EXAMPLES[key]) return;
+        if (!window._monacoReady) return;
+        const ex = EXAMPLES[key];
+        window._transformEditor.setValue(ex.script);
+        window._payloadEditor.setValue(ex.payload);
+
+        window._payloadFormat = ex.payloadFormat || 'json';
+        monaco.editor.setModelLanguage(
+          window._payloadEditor.getModel(),
+          window._payloadFormat,
+        );
+
+        // Update Payload Panel Title
+        const payloadTitleSpan = document.getElementById('payloadEditor')
+          .parentElement.previousElementSibling.querySelector('.panel-title');
+        if (payloadTitleSpan) {
+          payloadTitleSpan.innerHTML =
+            `<span class="panel-dot" style="background:var(--accent2)"></span> Payload (${window._payloadFormat.toUpperCase()})`;
+        }
+
+        this.value = '';
+        setStatus(
+          'idle',
+          `Loaded example: ${this.options[this.selectedIndex]?.text || key}`,
+        );
+      },
+    );
+
+    // ── Status helpers ────────────────────────────────────────────────────────────
+    function setStatus(state, message, time) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const ts = document.getElementById('statusTime');
+      dot.className = 'status-dot ' +
+        (state === 'ok'
+          ? 'ok'
+          : state === 'error'
+          ? 'error'
+          : state === 'running'
+          ? 'running'
+          : '');
+      text.textContent = message;
+      ts.textContent = time ? `${time}ms` : '';
+    }
+
+    // ── JSON syntax highlight ─────────────────────────────────────────────────────
+
+    // ── Run script ────────────────────────────────────────────────────────────────
+    async function runScript() {
+      if (!window._monacoReady) {
+        window._pendingRun = true;
+        return;
+      }
+
+      const btn = document.getElementById('runBtn');
+      const out = document.getElementById('outputContainer');
+      const copy = document.getElementById('copyBtn');
+
+      const code = window._transformEditor.getValue();
+      const payloadText = window._payloadEditor.getValue().trim();
+
+      const payloadFormat = window._payloadFormat || 'json';
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="spinner"></div> Running…`;
+      setStatus('running', 'Evaluating…');
+      copy.style.display = 'none';
+      out.style.display = 'block';
+      document.getElementById('outputEditor').style.display = 'none';
+      out.innerHTML = '';
+
+      const t0 = performance.now();
+
+      try {
+        const resp = await fetch('/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, payloadText, payloadFormat }),
+        });
+
+        const elapsed = Math.round(performance.now() - t0);
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+          const msg = data.error || 'Unknown error';
+          out.innerHTML =
+            `<div class="output-error anim-in"><div class="output-error-label">✖ Runtime Error</div>${
+              escapeHtml(msg)
+            }</div>`;
+          setStatus('error', 'Evaluation failed', elapsed);
+        } else {
+          window._lastOutput = data.result;
+          out.style.display = 'none';
+          const outEd = document.getElementById('outputEditor');
+          outEd.style.display = 'block';
+          window._outputEditor.setValue(data.result);
+          monaco.editor.setModelLanguage(
+            window._outputEditor.getModel(),
+            data.format || 'json',
+          );
+          setStatus('ok', 'Evaluated successfully', elapsed);
+          copy.style.display = '';
+        }
+      } catch (err) {
+        const elapsed = Math.round(performance.now() - t0);
+        out.innerHTML =
+          `<div class="output-error anim-in"><div class="output-error-label">✖ Network Error</div>${
+            escapeHtml(String(err))
+          }</div>`;
+        setStatus('error', 'Request failed', elapsed);
+      }
+
+      btn.disabled = false;
+      btn.innerHTML =
+        `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    // ── Copy button ───────────────────────────────────────────────────────────────
+    document.getElementById('copyBtn').addEventListener('click', async function () {
+      if (!window._lastOutput) return;
+      try {
+        await navigator.clipboard.writeText(window._lastOutput);
+        this.textContent = '✓ Copied!';
+        setTimeout(() => {
+          this.innerHTML =
+            `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy`;
+        }, 1800);
+      } catch { /* ignore */ }
+    });
+
+    // ── Run button ────────────────────────────────────────────────────────────────
+    document.getElementById('runBtn').addEventListener('click', runScript);
+    </script>
+  </body>
+</html>

@@ -11,6 +11,7 @@
     "compile": "deno compile --allow-read --output build/denoweave src/cli/main.ts",
     "check": "deno check src/mod.ts",
     "lint": "deno lint",
+    "playground": "deno run --allow-net --allow-read playground/server.ts",
     "fmt": "deno fmt"
   },
   "compilerOptions": {
