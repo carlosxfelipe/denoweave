@@ -1,7 +1,10 @@
 # DenoWeave
 
-> A lightweight data transformation engine compatible with the DataWeave
-> dialect, built from scratch in TypeScript + Deno.
+> Independent implementation of a DataWeave-compatible runtime for Deno, written
+> from scratch in TypeScript.
+
+🎮
+[Try the Live Playground!](https://denoweave-x6jw0zdq52gx.carlosxfelipe.deno.net/)
 
 ---
 
@@ -31,6 +34,10 @@ add the following to your `.vscode/settings.json`:
 
 DenoWeave includes a built-in interactive web playground that lets you write
 transformations, edit payloads, and see the results live in your browser.
+
+You can try it online at
+[denoweave.carlosxfelipe.deno.net](https://denoweave-x6jw0zdq52gx.carlosxfelipe.deno.net/),
+or run it locally:
 
 ```bash
 deno task playground
@@ -440,10 +447,11 @@ DenoWeave:
 
 ## Disclaimer
 
-DenoWeave is an independent, open-source project, implemented from scratch in
+DenoWeave is an independent, open-source project implemented from scratch in
 TypeScript/Deno with the sole purpose of interoperability and data
-compatibility. There is no reuse of proprietary code or reverse engineering of
-closed binaries.
+compatibility. This project does not include or redistribute any proprietary
+code. Compatibility with many DataWeave features is a project goal, but full
+compatibility is not guaranteed.
 
 _MuleSoft, Anypoint Platform, and DataWeave are registered trademarks of
 MuleSoft, LLC, a subsidiary of Salesforce, Inc. This project has no affiliation,
