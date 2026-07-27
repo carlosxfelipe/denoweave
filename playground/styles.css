@@ -512,3 +512,22 @@ kbd {
     border-top-color: #fff;
   }
 }
+
+/* ── Responsive Mobile Fixes ────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  header {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .brand-name,
+  .brand-badge,
+  .shortcut-hint {
+    display: none !important;
+  }
+  .header-center span {
+    display: none;
+  }
+  .example-select {
+    width: 120px;
+  }
+}
