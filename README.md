@@ -405,32 +405,31 @@ JSON / CSV / XML / YAML
 
 ---
 
-## Architectural Notes vs Official DataWeave
+## Architectural Notes
 
-Since this is an educational and experimental project, its architecture differs
-fundamentally from the official MuleSoft DataWeave implementation:
+This is an independent, educational, and experimental project. It serves as an
+accessible bridge for developers who want to learn the DataWeave language and
+practice data transformation concepts, potentially preparing them for future
+work within the official MuleSoft ecosystem.
 
-- **Memory and Streaming:** The official JVM DataWeave engine relies heavily on
-  reactive streams, which allows it to process massive files (e.g.,
-  multi-gigabyte CSVs) with a very small memory footprint. DenoWeave, by
-  contrast, loads the entire payload into memory to build its Abstract Syntax
-  Tree (AST). This means DenoWeave will hit V8 memory limits if you attempt to
-  process extremely large datasets.
-- **Startup Time & Edge Computing:** While the JVM ecosystem relies on
-  Ahead-of-Time (AOT) compilation (like GraalVM) to mitigate cold starts in
-  serverless environments, DenoWeave runs on the V8 JavaScript engine. This
-  natively leverages V8 Isolates, enabling near-instant startup times without
-  compilation steps. This makes it an interesting fit for modern Edge
+Because of this scope, its architecture is designed for simplicity and modern
+web environments:
+
+- **In-Memory Processing:** DenoWeave currently loads the entire payload into
+  memory to build its Abstract Syntax Tree (AST) and evaluate the
+  transformation. This means it works exceptionally well for small to medium
+  payloads but will hit V8 memory limits if you attempt to process extremely
+  large datasets.
+- **Startup Time & Edge Computing:** Built on the V8 JavaScript engine,
+  DenoWeave natively leverages V8 Isolates. This enables near-instant startup
+  times without compilation steps, making it an excellent fit for modern Edge
   environments (like Deno Deploy or Cloudflare Workers) where scripts need to
-  start and execute in milliseconds, provided the payloads remain reasonably
-  small.
-- **Future Evolution (Streaming & Wasm):** If someone were to fork or evolve
-  this project to handle multi-gigabyte files, the modern Deno ecosystem
-  provides excellent native paths. The data adapters and evaluator could be
-  refactored to use the Web Streams API and Async Iterators to process data
-  chunk-by-chunk with a near-zero memory footprint. Alternatively, the core
-  evaluation engine could be rewritten in Rust and compiled to WebAssembly
-  (Wasm) to run inside Deno at near-native speeds.
+  start and execute in milliseconds.
+- **Future Evolution (Streaming & Wasm):** To handle larger files in the future,
+  the modern Deno ecosystem provides excellent native paths. The data adapters
+  could be refactored to use the Web Streams API to process data chunk-by-chunk.
+  Alternatively, the core evaluation engine could be ported to Rust and compiled
+  to WebAssembly (Wasm) for near-native speeds.
 
 ---
 
