@@ -66,11 +66,20 @@
 
         <!-- Payload (middle) -->
         <div class="panel panel-middle">
-          <div class="panel-header">
+          <div class="panel-header"
+            style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <span class="panel-title">
               <span class="panel-dot" style="background:var(--accent2)"></span>
-              Payload (JSON)
+              Payload
             </span>
+            <select id="payloadFormatSelect" class="example-select"
+              style="font-size:11px; padding: 2px 18px 2px 8px; height:24px; min-width: 60px;">
+              <option value="json">JSON</option>
+              <option value="xml">XML</option>
+              <option value="csv">CSV</option>
+              <option value="yaml">YAML</option>
+              <option value="text">String</option>
+            </select>
           </div>
           <div class="panel-body">
             <div id="payloadEditor" class="editor-container"></div>
@@ -369,12 +378,10 @@
           window._payloadFormat,
         );
 
-        // Update Payload Panel Title
-        const payloadTitleSpan = document.getElementById('payloadEditor')
-          .parentElement.previousElementSibling.querySelector('.panel-title');
-        if (payloadTitleSpan) {
-          payloadTitleSpan.innerHTML =
-            `<span class="panel-dot" style="background:var(--accent2)"></span> Payload (${window._payloadFormat.toUpperCase()})`;
+        // Update Payload Format Select
+        const payloadSelect = document.getElementById('payloadFormatSelect');
+        if (payloadSelect) {
+          payloadSelect.value = window._payloadFormat;
         }
 
         this.value = '';
@@ -382,6 +389,23 @@
           'idle',
           `Loaded example: ${this.options[this.selectedIndex]?.text || key}`,
         );
+      },
+    );
+
+    // ── Payload Format Selector ───────────────────────────────────────────────────
+    document.getElementById('payloadFormatSelect').addEventListener(
+      'change',
+      function () {
+        const format = this.value;
+        window._payloadFormat = format;
+        if (window._monacoReady && window._payloadEditor) {
+          monaco.editor.setModelLanguage(
+            window._payloadEditor.getModel(),
+            format === 'xml' || format === 'json' || format === 'yaml'
+              ? format
+              : 'text',
+          );
+        }
       },
     );
 
