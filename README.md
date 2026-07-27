@@ -4,7 +4,7 @@
 > from scratch in TypeScript.
 
 🎮
-[Try the Live Playground!](https://denoweave-x6jw0zdq52gx.carlosxfelipe.deno.net/)
+[Try the Live Playground!](https://denoweave.carlosxfelipe.deno.net/)
 
 ---
 
@@ -36,7 +36,7 @@ DenoWeave includes a built-in interactive web playground that lets you write
 transformations, edit payloads, and see the results live in your browser.
 
 You can try it online at
-[denoweave.carlosxfelipe.deno.net](https://denoweave-x6jw0zdq52gx.carlosxfelipe.deno.net/),
+[denoweave.carlosxfelipe.deno.net](https://denoweave.carlosxfelipe.deno.net/),
 or run it locally:
 
 ```bash
