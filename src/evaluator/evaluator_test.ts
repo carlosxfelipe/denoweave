@@ -739,3 +739,59 @@ fun id(x) = x
 id("anything")`;
   assertEquals(evaluate(src), 'anything');
 });
+
+Deno.test('Evaluator: as Date coerces string to PlainDate', () => {
+  const result = evaluate(`
+    %dw 2.0
+    output application/json
+    ---
+    ("2024-03-15" as Date) + |P1D|
+  `);
+  // Temporal.PlainDate serialises to its ISO string
+  const s = JSON.stringify(result).replace(/"/g, '');
+  assertEquals(s, '2024-03-16');
+});
+
+Deno.test('Evaluator: as Date enables arithmetic from payload', () => {
+  const result = evaluate(
+    `%dw 2.0
+output application/json
+---
+(payload.date as Date) + |P7D|`,
+    ctx({ date: '2024-01-01' }),
+  );
+  const s = JSON.stringify(result).replace(/"/g, '');
+  assertEquals(s, '2024-01-08');
+});
+
+Deno.test('Evaluator: as DateTime coerces date-only string (adds T00:00:00)', () => {
+  const result = evaluate(`
+    %dw 2.0
+    output application/json
+    ---
+    ("2024-06-01" as DateTime) + |PT3H|
+  `);
+  const s = JSON.stringify(result).replace(/"/g, '');
+  assertEquals(s, '2024-06-01T03:00:00');
+});
+
+Deno.test('Evaluator: as Period coerces ISO duration string', () => {
+  const result = evaluate(`
+    %dw 2.0
+    output application/json
+    ---
+    |2024-01-01| + ("P1M" as Period)
+  `);
+  const s = JSON.stringify(result).replace(/"/g, '');
+  assertEquals(s, '2024-02-01');
+});
+
+Deno.test('Evaluator: Temporal value as String returns ISO representation', () => {
+  const result = evaluate(`
+    %dw 2.0
+    output application/json
+    ---
+    (|2024-03-15| as String)
+  `);
+  assertEquals(result, '2024-03-15');
+});

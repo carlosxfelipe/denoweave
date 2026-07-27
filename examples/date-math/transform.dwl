@@ -1,13 +1,13 @@
 %dw 2.0
 output application/json
-var startDate = |2024-02-20| // We can use literal directly or parse from payload... wait, our literals are parsed statically! Let's mix both literal syntax and payload parsing if possible. Oh wait, DenoWeave doesn't have a dynamic `Temporal.PlainDate.from` function exposed to DWL yet! The user must use literals right now because `as Date` isn't fully wired for Temporal.
-// Let's just showcase the Date Literals themselves as requested!
+var startDate = |2024-02-20|
 ---
 {
+  // --- Literal Date Math ---
   "projectStart": |2024-02-20|,
-  "phase1_Deadline": |2024-02-20| + |P1M10D|, // Leap year! Feb 20 + 1 month = Mar 20 + 10 days = Mar 30
+  "phase1_Deadline": |2024-02-20| + |P1M10D|, // Feb 20 + 1 month + 10 days = Mar 30
   "phase2_Deadline": |2024-02-20| + |P3M|,    // May 20
-  
+
   // Leap year edge case
   "leapYearCheck": {
     "start": |2024-02-28|,
@@ -22,5 +22,13 @@ var startDate = |2024-02-20| // We can use literal directly or parse from payloa
   },
 
   // Subtraction
-  "pastDate": |2024-01-15| - |P1M5D|
+  "pastDate": |2024-01-15| - |P1M5D|,
+
+  // --- Dynamic coercion from payload ---
+  // payload = { "eventDate": "2024-06-01", "duration": "P2M" }
+  "fromPayload": {
+    "eventDeadline": (payload.eventDate as Date) + |P30D|,
+    "customDuration": |2024-01-01| + (payload.duration as Period),
+    "dateAsString": |2024-03-15| as String
+  }
 }

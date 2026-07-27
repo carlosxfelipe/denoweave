@@ -5,6 +5,8 @@
  * call creates a child scope that extends the caller's scope.
  */
 
+import type { TemporalValue } from './temporal.ts';
+
 // ── Value types ──────────────────────────────────────────────────────────────
 
 /** A first-class function in the DSL runtime. */
@@ -16,7 +18,8 @@ export type DWObject = { [key: string]: Value };
 /**
  * The complete set of values the runtime can produce or consume.
  *
- * Mirrors JSON-like data model plus native functions (used by stdlib).
+ * Mirrors JSON-like data model plus native functions (used by stdlib)
+ * and Temporal objects for date/time arithmetic.
  */
 export type Value =
   | string
@@ -25,6 +28,7 @@ export type Value =
   | null
   | undefined
   | Date
+  | TemporalValue
   | Value[]
   | DWObject
   | DWFunction;

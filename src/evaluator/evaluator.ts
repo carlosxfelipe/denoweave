@@ -7,6 +7,7 @@ import {
   type Value,
 } from './environment.ts';
 import { STDLIB } from '../stdlib/index.ts';
+import { temporal } from './temporal.ts';
 
 // ── Runtime error ─────────────────────────────────────────────────────────────
 
@@ -78,20 +79,16 @@ class Evaluator {
 
       case 'TemporalLiteral':
         if (node.temporalType === 'period') {
-          // @ts-ignore: Temporal is natively available in Deno
-          return Temporal.Duration.from(node.value);
+          return temporal.durationFrom(node.value);
         }
         // Simple ISO 8601 parsing logic
         if (node.value.includes('T')) {
           if (node.value.includes('Z') || node.value.match(/[+-]\d\d:\d\d$/)) {
-            // @ts-ignore: Temporal is natively available in Deno
-            return Temporal.Instant.from(node.value);
+            return temporal.instantFrom(node.value);
           }
-          // @ts-ignore: Temporal is natively available in Deno
-          return Temporal.PlainDateTime.from(node.value);
+          return temporal.plainDateTimeFrom(node.value);
         }
-        // @ts-ignore: Temporal is natively available in Deno
-        return Temporal.PlainDate.from(node.value);
+        return temporal.plainDateFrom(node.value);
 
       case 'Identifier':
         return env.get(node.name);
@@ -598,28 +595,15 @@ class Evaluator {
       // Arithmetic / string concatenation
       case '+': {
         // Temporal Math
-        // @ts-ignore: Temporal is natively available in Deno
-        if (typeof Temporal !== 'undefined') {
-          // @ts-ignore: Temporal is natively available in Deno
-          const isTempLeft = left instanceof Temporal.PlainDate ||
-            left instanceof Temporal.PlainDateTime ||
-            left instanceof Temporal.Duration ||
-            left instanceof Temporal.Instant;
-          // @ts-ignore: Temporal is natively available in Deno
-          const isTempRight = right instanceof Temporal.PlainDate ||
-            right instanceof Temporal.PlainDateTime ||
-            right instanceof Temporal.Duration ||
-            right instanceof Temporal.Instant;
+        if (temporal.isAvailable()) {
+          const isTempLeft = temporal.isTemporal(left);
+          const isTempRight = temporal.isTemporal(right);
 
           if (isTempLeft && isTempRight) {
-            // @ts-ignore: Temporal is natively available in Deno
-            if (left instanceof Temporal.Duration) {
-              // @ts-ignore: Temporal is natively available in Deno
-              if (right instanceof Temporal.Duration) return left.add(right);
-              // @ts-ignore: Temporal is natively available in Deno
+            if (temporal.isDuration(left)) {
+              if (temporal.isDuration(right)) return left.add(right);
               return right.add(left); // Duration + Date -> Date + Duration
             }
-            // @ts-ignore: Temporal is natively available in Deno
             return left.add(right);
           }
         }
@@ -644,21 +628,11 @@ class Evaluator {
         return String(left) + String(right);
       case '-': {
         // Temporal Math
-        // @ts-ignore: Temporal is natively available in Deno
-        if (typeof Temporal !== 'undefined') {
-          // @ts-ignore: Temporal is natively available in Deno
-          const isTempLeft = left instanceof Temporal.PlainDate ||
-            left instanceof Temporal.PlainDateTime ||
-            left instanceof Temporal.Duration ||
-            left instanceof Temporal.Instant;
-          // @ts-ignore: Temporal is natively available in Deno
-          const isTempRight = right instanceof Temporal.PlainDate ||
-            right instanceof Temporal.PlainDateTime ||
-            right instanceof Temporal.Duration ||
-            right instanceof Temporal.Instant;
+        if (temporal.isAvailable()) {
+          const isTempLeft = temporal.isTemporal(left);
+          const isTempRight = temporal.isTemporal(right);
 
           if (isTempLeft && isTempRight) {
-            // @ts-ignore: Temporal is natively available in Deno
             return left.subtract(right);
           }
         }
@@ -734,6 +708,8 @@ class Evaluator {
       }
       if (val === null || val === undefined) return '';
       if (val instanceof Date) return val.toISOString();
+      // Temporal objects → their ISO string representation
+      if (temporal.isTemporal(val)) return val.toString();
       if (typeof val === 'object') return JSON.stringify(val);
       return String(val);
     }
@@ -743,6 +719,37 @@ class Evaluator {
     }
     if (target === 'Boolean') {
       return Boolean(val);
+    }
+    // ── Temporal type coercions ─────────────────────────────────────────────
+    if (temporal.isAvailable()) {
+      const str = typeof val === 'string' ? val : String(val);
+      try {
+        switch (target) {
+          case 'Date':
+          case 'LocalDate':
+            return temporal.plainDateFrom(str);
+          case 'DateTime':
+          case 'LocalDateTime':
+            // Accept both "2024-01-15" (plain date → midnight) and full ISO
+            if (!str.includes('T')) {
+              return temporal.plainDateTimeFrom(str + 'T00:00:00');
+            }
+            if (str.includes('Z') || str.match(/[+-]\d\d:\d\d$/)) {
+              return temporal.instantFrom(str);
+            }
+            return temporal.plainDateTimeFrom(str);
+          case 'LocalTime':
+          case 'Time':
+            return temporal.plainTimeFrom(str);
+          case 'Period':
+          case 'Duration':
+            return temporal.durationFrom(str);
+        }
+      } catch {
+        throw new RuntimeError(
+          `Cannot coerce "${val}" to type ${target}: invalid format.`,
+        );
+      }
     }
     return val;
   }
