@@ -12,7 +12,7 @@ output application/json
 
   // --- Dynamic Math (Reading from Payload) ---
   "projectStart": payload.projectStart as Date,
-  
+
   "deadlines": {
     "phase1": (payload.projectStart as Date) + (payload.deadlines.phase1 as Period),
     "phase2": (payload.projectStart as Date) + (payload.deadlines.phase2 as Period),

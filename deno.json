@@ -12,7 +12,9 @@
     "check": "deno check src/mod.ts",
     "lint": "deno lint",
     "playground": "deno run --allow-net --allow-read playground/server.ts",
-    "fmt": "deno fmt"
+    "fmt": "deno fmt",
+    "fmt:dwl": "deno run --allow-read --allow-write tools/fmt_dwl.ts",
+    "fmt:dwl:check": "deno run --allow-read tools/fmt_dwl.ts --check"
   },
   "compilerOptions": {
     "strict": true,

@@ -7,10 +7,10 @@ output application/json
 // failures are captured and flagged instead of aborting the pipeline.
 
 fun processRecord(emp) = {
-  id:         emp.id,
-  fullName:   upper(emp.name),
+  id: emp.id,
+  fullName: upper(emp.name),
   annualSalary: emp.salary * 12,
-  dept:       emp.department.name
+  dept: emp.department.name
 }
 
 ---
@@ -21,13 +21,13 @@ payload map ((emp) ->
     if (result.success)
       {
         status: "OK",
-        data:   result.value
+        data: result.value
       }
     else
       {
-        status:  "ERROR",
-        id:      emp.id,
-        reason:  result.error.message
+        status: "ERROR",
+        id: emp.id,
+        reason: result.error.message
       }
   }
 )
