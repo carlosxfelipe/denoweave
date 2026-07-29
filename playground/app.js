@@ -141,7 +141,7 @@ require(['vs/editor/editor.main'], function () {
     },
   });
 
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+  const prefersDark = globalThis.matchMedia('(prefers-color-scheme: dark)');
   const getTheme = () =>
     prefersDark.matches ? 'playground-dark' : 'playground-light';
 
@@ -206,11 +206,11 @@ require(['vs/editor/editor.main'], function () {
       lineNumbers: 'off',
     },
   );
-  window._outputEditor = outputEditor;
-  window._transformEditor = transformEditor;
-  window._payloadEditor = payloadEditor;
-  window._monacoReady = true;
-  if (window._pendingRun) runScript();
+  globalThis._outputEditor = outputEditor;
+  globalThis._transformEditor = transformEditor;
+  globalThis._payloadEditor = payloadEditor;
+  globalThis._monacoReady = true;
+  if (globalThis._pendingRun) runScript();
 });
 
 // ── Examples ──────────────────────────────────────────────────────────────────
@@ -239,21 +239,21 @@ document.getElementById('exampleSelect').addEventListener(
   function () {
     const key = this.value;
     if (!key || !EXAMPLES[key]) return;
-    if (!window._monacoReady) return;
+    if (!globalThis._monacoReady) return;
     const ex = EXAMPLES[key];
-    window._transformEditor.setValue(ex.script);
-    window._payloadEditor.setValue(ex.payload);
+    globalThis._transformEditor.setValue(ex.script);
+    globalThis._payloadEditor.setValue(ex.payload);
 
-    window._payloadFormat = ex.payloadFormat || 'json';
+    globalThis._payloadFormat = ex.payloadFormat || 'json';
     monaco.editor.setModelLanguage(
-      window._payloadEditor.getModel(),
-      window._payloadFormat,
+      globalThis._payloadEditor.getModel(),
+      globalThis._payloadFormat,
     );
 
     // Update Payload Format Select
     const payloadSelect = document.getElementById('payloadFormatSelect');
     if (payloadSelect) {
-      payloadSelect.value = window._payloadFormat;
+      payloadSelect.value = globalThis._payloadFormat;
     }
 
     this.value = '';
@@ -269,10 +269,10 @@ document.getElementById('payloadFormatSelect').addEventListener(
   'change',
   function () {
     const format = this.value;
-    window._payloadFormat = format;
-    if (window._monacoReady && window._payloadEditor) {
+    globalThis._payloadFormat = format;
+    if (globalThis._monacoReady && globalThis._payloadEditor) {
       monaco.editor.setModelLanguage(
-        window._payloadEditor.getModel(),
+        globalThis._payloadEditor.getModel(),
         format === 'xml' || format === 'json' || format === 'yaml'
           ? format
           : 'text',
@@ -302,8 +302,8 @@ function setStatus(state, message, time) {
 
 // ── Run script ────────────────────────────────────────────────────────────────
 async function runScript() {
-  if (!window._monacoReady) {
-    window._pendingRun = true;
+  if (!globalThis._monacoReady) {
+    globalThis._pendingRun = true;
     return;
   }
 
@@ -311,10 +311,10 @@ async function runScript() {
   const out = document.getElementById('outputContainer');
   const copy = document.getElementById('copyBtn');
 
-  const code = window._transformEditor.getValue();
-  const payloadText = window._payloadEditor.getValue().trim();
+  const code = globalThis._transformEditor.getValue();
+  const payloadText = globalThis._payloadEditor.getValue().trim();
 
-  const payloadFormat = window._payloadFormat || 'json';
+  const payloadFormat = globalThis._payloadFormat || 'json';
 
   btn.disabled = true;
   btn.innerHTML = `<div class="spinner"></div> Running…`;
@@ -344,13 +344,13 @@ async function runScript() {
         }</div>`;
       setStatus('error', 'Evaluation failed', elapsed);
     } else {
-      window._lastOutput = data.result;
+      globalThis._lastOutput = data.result;
       out.style.display = 'none';
       const outEd = document.getElementById('outputEditor');
       outEd.style.display = 'block';
-      window._outputEditor.setValue(data.result);
+      globalThis._outputEditor.setValue(data.result);
       monaco.editor.setModelLanguage(
-        window._outputEditor.getModel(),
+        globalThis._outputEditor.getModel(),
         data.format || 'json',
       );
       setStatus('ok', 'Evaluated successfully', elapsed);
@@ -376,9 +376,9 @@ function escapeHtml(str) {
 
 // ── Copy button ───────────────────────────────────────────────────────────────
 document.getElementById('copyBtn').addEventListener('click', async function () {
-  if (!window._lastOutput) return;
+  if (!globalThis._lastOutput) return;
   try {
-    await navigator.clipboard.writeText(window._lastOutput);
+    await navigator.clipboard.writeText(globalThis._lastOutput);
     this.textContent = '✓ Copied!';
     setTimeout(() => {
       this.innerHTML =
