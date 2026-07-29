@@ -3,8 +3,7 @@
 > Independent implementation of a DataWeave-compatible runtime for Deno, written
 > from scratch in TypeScript.
 
-🎮
-[Try the Live Playground!](https://denoweave.carlosxfelipe.deno.net/)
+🎮 [Try the Live Playground!](https://denoweave.carlosxfelipe.deno.net/)
 
 ---
 
