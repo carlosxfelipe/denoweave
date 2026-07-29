@@ -380,10 +380,26 @@ To run the linter:
 deno task lint
 ```
 
-To format the code:
+To format the TypeScript codebase:
 
 ```bash
 deno task fmt
+```
+
+### DataWeave Formatter
+
+DenoWeave includes a built-in, custom pretty-printer specifically designed for DataWeave (`.dwl`) scripts. It intelligently formats code while preserving all comments, handles nested blocks, and correctly indents `if`/`else` and lambda continuations.
+
+To format all `.dwl` files in your project:
+
+```bash
+deno task fmt:dwl
+```
+
+To check for formatting issues without modifying files (useful in CI pipelines):
+
+```bash
+deno task fmt:dwl --check
 ```
 
 ---
