@@ -693,6 +693,9 @@ class Evaluator {
 
   /** Cast a value to a target type, enforcing declared type constraints. */
   private castValue(val: Value, target: string, props?: DWObject): Value {
+    if (val === null || val === undefined) {
+      throw new Error(`Cannot coerce Null to ${target}`);
+    }
     if (this.typeRegistry.has(target)) {
       const { baseType, constraintsChain } = this.resolveType(target);
       const result = this.castValue(val, baseType, props);
@@ -706,7 +709,6 @@ class Evaluator {
         const fmt = String(props['format'] ?? 'yyyy-MM-dd HH:mm:ss');
         return this.formatDate(val, fmt);
       }
-      if (val === null || val === undefined) return '';
       if (val instanceof Date) return val.toISOString();
       // Temporal objects → their ISO string representation
       if (temporal.isTemporal(val)) return val.toString();
@@ -715,7 +717,10 @@ class Evaluator {
     }
     if (target === 'Number') {
       const num = Number(val);
-      return isNaN(num) ? 0 : num;
+      if (isNaN(num)) {
+        throw new Error(`Cannot coerce ${typeof val} to Number`);
+      }
+      return num;
     }
     if (target === 'Boolean') {
       return Boolean(val);
