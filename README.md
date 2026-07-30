@@ -362,10 +362,31 @@ Output:
 
 ---
 
+## Supported Formats
+
+DenoWeave supports the same data formats as the official DataWeave playground.
+All adapters are implemented in pure TypeScript/Deno with **zero npm
+dependencies**.
+
+| Format         | MIME type                                                           | Input | Output | Notes                                                        |
+| -------------- | ------------------------------------------------------------------- | :---: | :----: | ------------------------------------------------------------ |
+| **JSON**       | `application/json`                                                  |  ✅   |   ✅   | Default format                                               |
+| **CSV**        | `application/csv`                                                   |  ✅   |   ✅   | RFC 4180; configurable delimiter & quoting                   |
+| **XML**        | `application/xml`                                                   |  ✅   |   ✅   | Hand-written recursive-descent parser                        |
+| **YAML**       | `application/yaml`                                                  |  ✅   |   ✅   | Via `@std/yaml` (MIT)                                        |
+| **NDJSON**     | `application/ndjson`                                                |  ✅   |   ✅   | One JSON value per line                                      |
+| **TEXT**       | `text/plain`                                                        |  ✅   |   ✅   | Raw string pass-through                                      |
+| **URLENCODED** | `application/x-www-form-urlencoded`                                 |  ✅   |   ✅   | Via native `URLSearchParams`                                 |
+| **MULTIPART**  | `multipart/form-data`                                               |  ✅   |   ✅   | RFC 2046; auto-detects boundary                              |
+| **DW**         | `application/dw`                                                    |  ✅   |   ✅   | DataWeave literal notation (unquoted keys, `\|date\|` pipes) |
+| **XLSX**       | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |  ✅   |   ✅   | Pure TS ZIP + ECMA-376; no native binaries                   |
+
+---
+
 ## Tests
 
-The project includes a suite of more than 200 automated tests to ensure the
-correct behavior of all components in the transformation engine.
+The project includes a suite of more than **340 automated tests** covering the
+lexer, parser, evaluator, stdlib, and all data adapters.
 
 To run the tests:
 
@@ -423,7 +444,7 @@ AST
     ↓ Evaluator      (src/evaluator/)
 Value
     ↓ Adapter        (src/adapters/)
-JSON / CSV / XML / YAML
+JSON / CSV / XML / YAML / NDJSON / TEXT / URLENCODED / MULTIPART / DW / XLSX
 ```
 
 ---

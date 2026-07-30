@@ -7,6 +7,7 @@
 import { evaluate } from '@denoweave/evaluator/evaluator.ts';
 import type { Value } from '@denoweave/evaluator/environment.ts';
 import { type Format, parse, serialize } from '@denoweave/adapters/index.ts';
+import { parseXLSX, toXLSX } from '@denoweave/adapters/xlsx.ts';
 import { format } from '@denoweave/formatter/fmt.ts';
 
 const PORT = 8787;
@@ -30,17 +31,57 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+// ── Output format detection ────────────────────────────────────────────────────
+
+const OUTPUT_FORMAT_PATTERNS: Array<[RegExp, string]> = [
+  [/output\s+application\/json/i, 'json'],
+  [/output\s+application\/xml/i, 'xml'],
+  [/output\s+text\/xml/i, 'xml'],
+  [/output\s+application\/csv/i, 'csv'],
+  [/output\s+text\/csv/i, 'csv'],
+  [/output\s+application\/yaml/i, 'yaml'],
+  [/output\s+text\/yaml/i, 'yaml'],
+  [/output\s+text\/plain/i, 'text'],
+  [/output\s+application\/ndjson/i, 'ndjson'],
+  [/output\s+application\/x-ndjson/i, 'ndjson'],
+  [/output\s+application\/x-www-form-urlencoded/i, 'urlencoded'],
+  [/output\s+multipart\/form-data/i, 'multipart'],
+  [/output\s+application\/dw/i, 'dw'],
+  [
+    /output\s+application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/i,
+    'xlsx',
+  ],
+  [/output\s+application\/xlsx/i, 'xlsx'],
+];
+
+function detectOutputFormat(code: string): string {
+  for (const [pattern, fmt] of OUTPUT_FORMAT_PATTERNS) {
+    if (pattern.test(code)) return fmt;
+  }
+  return 'json';
+}
+
 // ── Evaluate handler ───────────────────────────────────────────────────────────
 
 async function handleEvaluate(req: Request): Promise<Response> {
-  let body: { code?: string; payloadText?: string; payloadFormat?: string };
+  let body: {
+    code?: string;
+    payloadText?: string;
+    payloadFormat?: string;
+    payloadBase64?: string; // for binary formats (xlsx)
+  };
   try {
     body = await req.json();
   } catch {
     return json({ error: 'Invalid JSON body' }, 400);
   }
 
-  const { code = '', payloadText = 'null', payloadFormat = 'json' } = body;
+  const {
+    code = '',
+    payloadText = 'null',
+    payloadFormat = 'json',
+    payloadBase64,
+  } = body;
 
   if (typeof code !== 'string' || code.trim() === '') {
     return json({
@@ -48,26 +89,41 @@ async function handleEvaluate(req: Request): Promise<Response> {
     }, 400);
   }
 
+  // ── Parse payload ────────────────────────────────────────────────────────────
   let payloadValue: Value = null;
-  if (payloadText.trim() !== 'null' && payloadText.trim() !== '') {
+  const fmt = payloadFormat.toLowerCase();
+
+  if (fmt === 'xlsx') {
+    // XLSX: payload arrives as base64
+    if (payloadBase64) {
+      try {
+        const binaryStr = atob(payloadBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        payloadValue = await parseXLSX(bytes);
+      } catch (e) {
+        return json({
+          error: `Failed to parse XLSX payload: ${(e as Error).message}`,
+        }, 400);
+      }
+    }
+  } else if (payloadText.trim() !== 'null' && payloadText.trim() !== '') {
     try {
-      payloadValue = parse(payloadText, payloadFormat as Format);
+      payloadValue = parse(payloadText, fmt as Format);
     } catch (e) {
       return json({
-        error: `Failed to parse payload as ${payloadFormat}: ${
-          (e as Error).message
-        }`,
+        error: `Failed to parse payload as ${fmt}: ${(e as Error).message}`,
       }, 400);
     }
   }
 
-  // Run with a hard timeout to prevent infinite loops
+  // ── Detect output format ─────────────────────────────────────────────────────
+  const outputFormat = detectOutputFormat(code);
+
+  // ── Evaluate ─────────────────────────────────────────────────────────────────
   let result: Value;
-  let format = 'json';
-  const match = code.match(/output\s+(application|text)\/(xml|csv|yaml|json)/i);
-  if (match) {
-    format = match[2].toLowerCase();
-  }
 
   try {
     const evaluatePromise = new Promise<Value>((resolve, reject) => {
@@ -112,14 +168,29 @@ async function handleEvaluate(req: Request): Promise<Response> {
     return json({ error: message }, 422);
   }
 
+  // ── Serialize output ─────────────────────────────────────────────────────────
+
+  if (outputFormat === 'xlsx') {
+    // Return base64-encoded XLSX bytes
+    try {
+      const xlsxBytes = await toXLSX(result);
+      const base64 = btoa(String.fromCharCode(...xlsxBytes));
+      return json({ result: base64, format: 'xlsx', binary: true });
+    } catch (err) {
+      return json({
+        error: `Failed to serialize as XLSX: ${(err as Error).message}`,
+      }, 422);
+    }
+  }
+
   let serialized = '';
   try {
-    serialized = serialize(result, format as Format, { indent: 2 });
+    serialized = serialize(result, outputFormat as Format, { indent: 2 });
   } catch (_err) {
     serialized = JSON.stringify(result, null, 2);
   }
 
-  return json({ result: serialized, format });
+  return json({ result: serialized, format: outputFormat });
 }
 
 // ── Format handler ─────────────────────────────────────────────────────────────

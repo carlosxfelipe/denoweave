@@ -90,13 +90,35 @@
               Payload
             </span>
             <select id="payloadFormatSelect" class="example-select"
-              style="font-size:11px; padding: 2px 18px 2px 8px; height:24px; min-width: 60px;">
+              style="font-size:11px; padding: 2px 18px 2px 8px; height:24px; min-width: 72px;">
               <option value="json">JSON</option>
-              <option value="xml">XML</option>
               <option value="csv">CSV</option>
+              <option value="xml">XML</option>
+              <option value="ndjson">NDJSON</option>
               <option value="yaml">YAML</option>
-              <option value="text">String</option>
+              <option value="text">TEXT</option>
+              <option value="multipart">MULTIPART</option>
+              <option value="urlencoded">URLENCODED</option>
+              <option value="dw">DWL</option>
+              <option value="xlsx">XLSX</option>
             </select>
+          </div>
+          <!-- XLSX file upload (shown only when xlsx format is selected) -->
+          <div id="xlsxUploadBar" class="xlsx-upload-bar" style="display:none;">
+            <!-- Hidden native input, triggered by the styled label below -->
+            <input type="file" id="xlsxFileInput" accept=".xlsx"
+              class="xlsx-file-input" />
+            <label for="xlsxFileInput" class="btn btn-ghost xlsx-upload-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Choose .xlsx file
+            </label>
+            <span id="xlsxFileName" class="xlsx-file-name">No file chosen</span>
           </div>
           <div class="panel-body">
             <div id="payloadEditor" class="editor-container"></div>

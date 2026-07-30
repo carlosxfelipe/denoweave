@@ -275,16 +275,92 @@ document.getElementById('payloadFormatSelect').addEventListener(
   function () {
     const format = this.value;
     globalThis._payloadFormat = format;
+    globalThis._xlsxBase64 = null; // reset binary payload on format change
+
+    const uploadBar = document.getElementById('xlsxUploadBar');
+    const payloadEditorEl = document.getElementById('payloadEditor');
+
+    if (format === 'xlsx') {
+      uploadBar.style.display = 'block';
+      payloadEditorEl.style.display = 'none';
+    } else {
+      uploadBar.style.display = 'none';
+      payloadEditorEl.style.display = 'block';
+    }
+
     if (globalThis._monacoReady && globalThis._payloadEditor) {
+      const monacoLang = formatToMonacoLang(format);
       monaco.editor.setModelLanguage(
         globalThis._payloadEditor.getModel(),
-        format === 'xml' || format === 'json' || format === 'yaml'
-          ? format
-          : 'text',
+        monacoLang,
       );
     }
   },
 );
+
+// ── XLSX file upload ──────────────────────────────────────────────────────────
+document.getElementById('xlsxFileInput').addEventListener(
+  'change',
+  function () {
+    const file = this.files && this.files[0];
+    const nameEl = document.getElementById('xlsxFileName');
+    if (!file) {
+      nameEl.textContent = 'No file chosen';
+      nameEl.classList.remove('loaded');
+      return;
+    }
+    nameEl.textContent = `${file.name}  (${(file.size / 1024).toFixed(1)} KB)`;
+    nameEl.classList.add('loaded');
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const arrayBuffer = e.target.result;
+      const bytes = new Uint8Array(arrayBuffer);
+      // Encode to base64 (chunked to avoid call stack overflow on large files)
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(
+          null,
+          bytes.subarray(i, i + chunkSize),
+        );
+      }
+      globalThis._xlsxBase64 = btoa(binary);
+      setStatus(
+        'idle',
+        `XLSX loaded: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`,
+      );
+    };
+    reader.readAsArrayBuffer(file);
+  },
+);
+
+/** Map adapter format id to Monaco editor language id. */
+function formatToMonacoLang(format) {
+  switch (format) {
+    case 'json':
+      return 'json';
+    case 'xml':
+      return 'xml';
+    case 'yaml':
+      return 'yaml';
+    case 'csv':
+      return 'plaintext';
+    case 'ndjson':
+      return 'json';
+    case 'text':
+      return 'plaintext';
+    case 'urlencoded':
+      return 'plaintext';
+    case 'multipart':
+      return 'plaintext';
+    case 'dw':
+      return 'dataweave';
+    case 'xlsx':
+      return 'plaintext';
+    default:
+      return 'plaintext';
+  }
+}
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 function setStatus(state, message, time) {
@@ -332,10 +408,17 @@ async function runScript() {
   const t0 = performance.now();
 
   try {
+    const reqBody = { code, payloadText, payloadFormat };
+    // Attach base64 XLSX payload if the format is xlsx
+    if (payloadFormat === 'xlsx' && globalThis._xlsxBase64) {
+      reqBody.payloadBase64 = globalThis._xlsxBase64;
+      reqBody.payloadText = 'null';
+    }
+
     const resp = await fetch('/evaluate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, payloadText, payloadFormat }),
+      body: JSON.stringify(reqBody),
     });
 
     const elapsed = Math.round(performance.now() - t0);
@@ -348,6 +431,33 @@ async function runScript() {
           escapeHtml(msg)
         }</div>`;
       setStatus('error', 'Evaluation failed', elapsed);
+    } else if (data.binary && data.format === 'xlsx') {
+      // Binary XLSX output: offer a download link
+      out.style.display = 'block';
+      document.getElementById('outputEditor').style.display = 'none';
+      const base64 = data.result;
+      const blob = base64ToBlob(
+        base64,
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      const url = URL.createObjectURL(blob);
+      out.innerHTML = `
+        <div class="output-xlsx-result anim-in">
+          <div style="font-size:32px;margin-bottom:12px;">📊</div>
+          <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+            XLSX output generated successfully
+          </div>
+          <a id="xlsxDownloadLink" href="${url}" download="output.xlsx"
+            class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download output.xlsx
+          </a>
+        </div>`;
+      setStatus('ok', 'XLSX generated successfully', elapsed);
     } else {
       globalThis._lastOutput = data.result;
       out.style.display = 'none';
@@ -356,7 +466,7 @@ async function runScript() {
       globalThis._outputEditor.setValue(data.result);
       monaco.editor.setModelLanguage(
         globalThis._outputEditor.getModel(),
-        data.format || 'json',
+        formatToMonacoLang(data.format || 'json'),
       );
       setStatus('ok', 'Evaluated successfully', elapsed);
       copy.style.display = '';
@@ -418,6 +528,16 @@ async function formatScript() {
 
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Convert a base64 string to a Blob (for binary downloads). */
+function base64ToBlob(base64, mimeType) {
+  const binaryStr = atob(base64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: mimeType });
 }
 
 // ── Copy button ───────────────────────────────────────────────────────────────
