@@ -1319,6 +1319,7 @@ export class Parser {
   private expectPropName(): Token {
     const tok = this.peek();
     const isProp = tok.type === TokenType.IDENT ||
+      tok.type === TokenType.STRING ||
       Object.values(KEYWORDS).includes(tok.type);
     if (!isProp) {
       throw new ParseError(`Expected property name but got ${tok.type}`, tok);

@@ -1,0 +1,18 @@
+--boundary123
+Content-Disposition: form-data; name="username"
+
+alice_dev
+--boundary123
+Content-Disposition: form-data; name="email"
+
+alice@example.com
+--boundary123
+Content-Disposition: form-data; name="bio"
+
+  Software engineer passionate about DataWeave and Deno.  
+--boundary123
+Content-Disposition: form-data; name="avatar"; filename="photo.png"
+Content-Type: image/png
+
+<binary content would be here>
+--boundary123--

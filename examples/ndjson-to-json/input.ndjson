@@ -1,0 +1,6 @@
+{"timestamp":"2024-01-15T08:00:01Z","level":"INFO","service":"auth","message":"User login successful"}
+{"timestamp":"2024-01-15T08:01:23Z","level":"WARN","service":"payments","message":"Slow response from payment gateway"}
+{"timestamp":"2024-01-15T08:02:45Z","level":"ERROR","service":"inventory","message":"Database connection timeout"}
+{"timestamp":"2024-01-15T08:03:10Z","level":"INFO","service":"auth","message":"Token refreshed"}
+{"timestamp":"2024-01-15T08:04:55Z","level":"ERROR","service":"payments","message":"Transaction rollback after 3 retries"}
+{"timestamp":"2024-01-15T08:05:30Z","level":"WARN","service":"inventory","message":"Stock level below threshold for SKU-99"}

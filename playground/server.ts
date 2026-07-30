@@ -262,16 +262,23 @@ async function handleExamples(_req: Request): Promise<Response> {
   > = {};
 
   try {
-    const ignoreList = ['connectors', 'pipeline', 'http-server', 'scratch'];
+    // Binary / infra examples that don't work in the browser playground
+    const ignoreList = [
+      'connectors',
+      'pipeline',
+      'http-server',
+      'scratch',
+      'xlsx-to-json', // binary input — requires a real .xlsx file
+    ];
 
     for await (const entry of Deno.readDir(examplesDir)) {
       if (entry.isDirectory && !ignoreList.includes(entry.name)) {
         const examplePath = new URL(`${entry.name}/`, examplesDir);
         let script = '';
         let payload = 'null';
-
         let payloadFormat = 'json';
 
+        // Load script (transform.dwl preferred, main.dwl as fallback)
         try {
           script = await Deno.readTextFile(
             new URL('transform.dwl', examplePath),
@@ -280,34 +287,31 @@ async function handleExamples(_req: Request): Promise<Response> {
           try {
             script = await Deno.readTextFile(new URL('main.dwl', examplePath));
           } catch {
-            continue; // skip if no transform.dwl or main.dwl
+            continue; // skip if no script found
           }
         }
 
-        try {
-          payload = await Deno.readTextFile(new URL('input.json', examplePath));
-        } catch {
+        // Load payload — probe for each supported format in priority order
+        const inputCandidates: Array<[string, string]> = [
+          ['input.json', 'json'],
+          ['input.csv', 'csv'],
+          ['input.xml', 'xml'],
+          ['input.yaml', 'yaml'],
+          ['input.ndjson', 'ndjson'],
+          ['input.txt', 'text'],
+          ['input.urlencoded', 'urlencoded'],
+          ['input.multipart', 'multipart'],
+        ];
+
+        for (const [filename, fmt] of inputCandidates) {
           try {
             payload = await Deno.readTextFile(
-              new URL('input.csv', examplePath),
+              new URL(filename, examplePath),
             );
-            payloadFormat = 'csv';
+            payloadFormat = fmt;
+            break;
           } catch {
-            try {
-              payload = await Deno.readTextFile(
-                new URL('input.xml', examplePath),
-              );
-              payloadFormat = 'xml';
-            } catch {
-              try {
-                payload = await Deno.readTextFile(
-                  new URL('input.yaml', examplePath),
-                );
-                payloadFormat = 'yaml';
-              } catch {
-                // ignore, keep payload as 'null'
-              }
-            }
+            // try next candidate
           }
         }
 

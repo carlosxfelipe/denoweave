@@ -88,6 +88,15 @@ Deno.test('Parser: index expression — arr[0]', () => {
   }
 });
 
+Deno.test('Parser: member access with string key — p."content-type"', () => {
+  const node = parse('p."content-type"');
+  assertEquals(node.type, 'MemberExpression');
+  if (node.type === 'MemberExpression') {
+    assertEquals(node.property.type, 'Identifier');
+    assertEquals(node.property.name, 'content-type');
+  }
+});
+
 // ── Call expressions ──────────────────────────────────────────────────────────
 
 Deno.test('Parser: call with no args — fn()', () => {

@@ -1,0 +1,6 @@
+name, department, salary
+Alice Silva, Engineering, 95000
+Bob Santos, Marketing, 72000
+Carol Pereira, Engineering, 110000
+David Lima, HR, 68000
+Eva Rodrigues, Engineering, 88000
