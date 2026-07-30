@@ -521,7 +521,8 @@ kbd {
   }
   .brand-name,
   .brand-badge,
-  .shortcut-hint {
+  .shortcut-hint,
+  .btn-text {
     display: none !important;
   }
   .header-center span {

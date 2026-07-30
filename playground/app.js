@@ -196,6 +196,11 @@ require(['vs/editor/editor.main'], function () {
     );
   });
 
+  transformEditor.addCommand(
+    monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF,
+    () => formatScript(),
+  );
+
   const outputEditor = monaco.editor.create(
     document.getElementById('outputEditor'),
     {
@@ -370,6 +375,47 @@ async function runScript() {
     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run`;
 }
 
+// ── Format script ─────────────────────────────────────────────────────────────
+async function formatScript() {
+  if (!globalThis._monacoReady) return;
+
+  const btn = document.getElementById('formatBtn');
+  const code = globalThis._transformEditor.getValue();
+
+  btn.disabled = true;
+  setStatus('running', 'Formatting…');
+
+  const t0 = performance.now();
+
+  try {
+    const resp = await fetch('/format', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+
+    const elapsed = Math.round(performance.now() - t0);
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      const msg = data.error || 'Unknown error';
+      setStatus('error', `Format failed: ${msg}`, elapsed);
+    } else {
+      globalThis._transformEditor.setValue(data.result);
+      setStatus('ok', 'Formatted successfully', elapsed);
+    }
+  } catch (err) {
+    const elapsed = Math.round(performance.now() - t0);
+    setStatus(
+      'error',
+      `Request failed: ${err.message || String(err)}`,
+      elapsed,
+    );
+  }
+
+  btn.disabled = false;
+}
+
 function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -389,3 +435,6 @@ document.getElementById('copyBtn').addEventListener('click', async function () {
 
 // ── Run button ────────────────────────────────────────────────────────────────
 document.getElementById('runBtn').addEventListener('click', runScript);
+
+// ── Format button ─────────────────────────────────────────────────────────────
+document.getElementById('formatBtn').addEventListener('click', formatScript);

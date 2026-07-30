@@ -126,13 +126,44 @@ export function format(source: string): string {
     // ── Build line text (collapse inter-token whitespace to single space) ──
     let lineText = '';
     let afterContent = false;
+    let prevTokForSpace: FmtToken | null = null;
+
     for (const tok of line) {
       if (tok.kind === FmtTok.WHITESPACE) {
-        if (afterContent) lineText += ' ';
+        if (afterContent && !lineText.endsWith(' ')) lineText += ' ';
         continue;
       }
+
+      // Basic auto-spacing rules for glued tokens
+      if (prevTokForSpace) {
+        const pText = prevTokForSpace.text;
+
+        if (pText === ',' && !lineText.endsWith(' ')) {
+          lineText += ' ';
+        } else if (pText === ':') {
+          // Do not add space if we are in the middle of or just after a double colon (::)
+          if (
+            tok.text !== ':' && !lineText.endsWith('::') &&
+            !lineText.endsWith(' ')
+          ) {
+            lineText += ' ';
+          }
+        }
+
+        // Space inside braces if on the same line
+        if (prevTokForSpace.kind === FmtTok.LBRACE && !lineText.endsWith(' ')) {
+          lineText += ' ';
+        }
+        if (
+          tok.kind === FmtTok.RBRACE && !lineText.endsWith(' ') && pText !== '{'
+        ) {
+          lineText += ' ';
+        }
+      }
+
       lineText += tok.text;
       afterContent = true;
+      prevTokForSpace = tok;
     }
 
     // ── Emit the line ──────────────────────────────────────────────────────

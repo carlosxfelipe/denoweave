@@ -388,7 +388,10 @@ deno task fmt
 
 ### DataWeave Formatter
 
-DenoWeave includes a built-in, custom pretty-printer specifically designed for DataWeave (`.dwl`) scripts. It intelligently formats code while preserving all comments, handles nested blocks, and correctly indents `if`/`else` and lambda continuations.
+DenoWeave includes a built-in, custom pretty-printer specifically designed for
+DataWeave (`.dwl`) scripts. It intelligently formats code while preserving all
+comments, handles nested blocks, and correctly indents `if`/`else` and lambda
+continuations.
 
 To format all `.dwl` files in your project:
 

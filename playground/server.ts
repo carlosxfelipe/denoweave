@@ -7,6 +7,7 @@
 import { evaluate } from '@denoweave/evaluator/evaluator.ts';
 import type { Value } from '@denoweave/evaluator/environment.ts';
 import { type Format, parse, serialize } from '@denoweave/adapters/index.ts';
+import { format } from '@denoweave/formatter/fmt.ts';
 
 const PORT = 8787;
 const TIMEOUT_MS = 5_000;
@@ -121,6 +122,33 @@ async function handleEvaluate(req: Request): Promise<Response> {
   return json({ result: serialized, format });
 }
 
+// ── Format handler ─────────────────────────────────────────────────────────────
+
+async function handleFormat(req: Request): Promise<Response> {
+  let body: { code?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'Invalid JSON body' }, 400);
+  }
+
+  const { code = '' } = body;
+
+  if (typeof code !== 'string') {
+    return json({
+      error: 'Field "code" is required and must be a string',
+    }, 400);
+  }
+
+  try {
+    const formatted = format(code);
+    return json({ result: formatted });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return json({ error: message }, 422);
+  }
+}
+
 // ── Static file handler ────────────────────────────────────────────────────────
 
 async function handleStatic(req: Request): Promise<Response> {
@@ -233,6 +261,10 @@ Deno.serve({
 
   if (url.pathname === '/evaluate' && req.method === 'POST') {
     return await handleEvaluate(req);
+  }
+
+  if (url.pathname === '/format' && req.method === 'POST') {
+    return await handleFormat(req);
   }
 
   if (url.pathname === '/examples' && req.method === 'GET') {
