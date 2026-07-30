@@ -46,7 +46,7 @@ export class ParseError extends Error {
  * Higher-order stdlib functions that can be used in infix position,
  * DataWeave style: `payload groupBy $.category`.
  */
-const INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
+const HIGHER_ORDER_INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
   'groupBy',
   'orderBy',
   'distinctBy',
@@ -54,6 +54,25 @@ const INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
   'mapObject',
   'filterObject',
   'pluck',
+  'sumBy',
+  'minBy',
+  'maxBy',
+  'countBy',
+]);
+
+const VALUE_INFIX_FUNCTIONS: ReadonlySet<string> = new Set([
+  'take',
+  'drop',
+  'joinBy',
+  'splitBy',
+  'contains',
+  'startsWith',
+  'endsWith',
+  'matches',
+  'scan',
+  'find',
+  'zip',
+  'chunk',
 ]);
 
 export class Parser {
@@ -442,7 +461,6 @@ export class Parser {
     return left;
   }
 
-  /** infix → comparison (("map"|"filter"|"reduce"|INFIX_FN) lambda)* */
   private parseInfix(): AST.Expression {
     let left = this.parseLogical();
 
@@ -453,38 +471,66 @@ export class Parser {
       this.checkInfixFunction()
     ) {
       const op = this.advance();
-      const lambda = this.parseLambda();
 
-      if (op.type === TokenType.MAP) {
-        left = {
-          type: 'MapExpression',
-          source: left,
-          lambda,
-          line: op.line,
-          column: op.column,
-        };
-      } else if (op.type === TokenType.FILTER) {
-        left = {
-          type: 'FilterExpression',
-          source: left,
-          lambda,
-          line: op.line,
-          column: op.column,
-        };
-      } else if (op.type === TokenType.REDUCE) {
-        left = {
-          type: 'ReduceExpression',
-          source: left,
-          lambda,
-          line: op.line,
-          column: op.column,
-        };
+      // Determine if we need to parse a lambda or just a regular expression
+      const isHigherOrder = op.type === TokenType.MAP ||
+        op.type === TokenType.FILTER ||
+        op.type === TokenType.REDUCE ||
+        HIGHER_ORDER_INFIX_FUNCTIONS.has(op.value);
+
+      if (isHigherOrder) {
+        const lambda = this.parseLambda();
+
+        if (op.type === TokenType.MAP) {
+          left = {
+            type: 'MapExpression',
+            source: left,
+            lambda,
+            line: op.line,
+            column: op.column,
+          };
+        } else if (op.type === TokenType.FILTER) {
+          left = {
+            type: 'FilterExpression',
+            source: left,
+            lambda,
+            line: op.line,
+            column: op.column,
+          };
+        } else if (op.type === TokenType.REDUCE) {
+          left = {
+            type: 'ReduceExpression',
+            source: left,
+            lambda,
+            line: op.line,
+            column: op.column,
+          };
+        } else {
+          left = {
+            type: 'InfixFunctionExpression',
+            name: op.value,
+            source: left,
+            lambda,
+            line: op.line,
+            column: op.column,
+          };
+        }
       } else {
+        // Value infix functions like `take`, `drop`, `joinBy`
+        const prev = this.inInfixLambda;
+        this.inInfixLambda = false; // Don't absorb into implicit lambda
+        const right = this.parseLogical();
+        this.inInfixLambda = prev;
+
         left = {
-          type: 'InfixFunctionExpression',
-          name: op.value,
-          source: left,
-          lambda,
+          type: 'CallExpression',
+          callee: {
+            type: 'Identifier',
+            name: op.value,
+            line: op.line,
+            column: op.column,
+          },
+          arguments: [left, right],
           line: op.line,
           column: op.column,
         };
@@ -495,15 +541,15 @@ export class Parser {
   }
 
   /**
-   * True when the current token is a stdlib higher-order function name used
-   * in infix position (e.g. `payload groupBy ...`). Requires a token after it
-   * that can plausibly start a lambda/expression, so a bare reference to the
-   * identifier (`f(groupBy)`, end of input, etc.) is not misparsed.
+   * True when the current token is a stdlib function name used
+   * in infix position (e.g. `payload groupBy ...` or `... take 3`). Requires a token after it
+   * that can plausibly start an expression.
    */
   private checkInfixFunction(): boolean {
+    if (!this.check(TokenType.IDENT)) return false;
+    const val = this.peek().value;
     if (
-      !this.check(TokenType.IDENT) ||
-      !INFIX_FUNCTIONS.has(this.peek().value)
+      !HIGHER_ORDER_INFIX_FUNCTIONS.has(val) && !VALUE_INFIX_FUNCTIONS.has(val)
     ) {
       return false;
     }

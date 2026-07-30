@@ -1,55 +1,20 @@
 /**
  * xlsx-to-json example
  *
- * This example generates a sample XLSX file in-memory (no external file
- * needed), then evaluates the DataWeave transform against it.
+ * This example reads a binary XLSX file and evaluates the DataWeave transform against it.
  *
  * Run: deno run --allow-read examples/xlsx-to-json/run.ts
  */
 import { evaluate } from '@denoweave/evaluator/evaluator.ts';
 import { serialize } from '@denoweave/adapters/index.ts';
-import { parseXLSX, toXLSX } from '@denoweave/adapters/xlsx.ts';
-
-// ── Generate a sample XLSX in memory ─────────────────────────────────────────
-
-const sampleData = [
-  {
-    region: 'North',
-    salesperson: 'Alice',
-    product: 'Widget A',
-    revenue: 12500,
-  },
-  { region: 'South', salesperson: 'Bob', product: 'Widget B', revenue: 8750 },
-  {
-    region: 'North',
-    salesperson: 'Carol',
-    product: 'Gadget X',
-    revenue: 21000,
-  },
-  { region: 'East', salesperson: 'David', product: 'Widget A', revenue: 6300 },
-  { region: 'South', salesperson: 'Eva', product: 'Gadget X', revenue: 15900 },
-  { region: 'East', salesperson: 'Frank', product: 'Widget B', revenue: 9200 },
-  {
-    region: 'North',
-    salesperson: 'Grace',
-    product: 'Gadget X',
-    revenue: 18400,
-  },
-];
+import { parseXLSX } from '@denoweave/adapters/xlsx.ts';
 
 try {
   const scriptPath = new URL('./transform.dwl', import.meta.url);
-  const script = Deno.readTextFileSync(scriptPath);
+  const payloadPath = new URL('./input.xlsx', import.meta.url);
 
-  // If an actual .xlsx exists alongside this file, use it; otherwise generate one
-  let xlsxBytes: Uint8Array;
-  try {
-    xlsxBytes = Deno.readFileSync(new URL('./input.xlsx', import.meta.url));
-    console.log('Using input.xlsx from disk.');
-  } catch {
-    console.log('No input.xlsx found — generating sample data in memory...');
-    xlsxBytes = await toXLSX(sampleData);
-  }
+  const script = Deno.readTextFileSync(scriptPath);
+  const xlsxBytes = Deno.readFileSync(payloadPath);
 
   // Parse the XLSX into an array of objects (first row = header)
   const payload = await parseXLSX(xlsxBytes);
