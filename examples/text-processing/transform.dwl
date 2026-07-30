@@ -13,5 +13,5 @@ reduce ((pair, acc = { }) -> acc ++ { (trim(pair[0])): trim(pair[1]) })
 ---
 {
   totalLines: sizeOf(rows),
-  records: rows map parseLine
+  records: rows map parseLine($)
 }

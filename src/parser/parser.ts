@@ -1037,6 +1037,19 @@ export class Parser {
             line: valTok.line,
             column: valTok.column,
           };
+        } else if (valTok.type === TokenType.LBRACE) {
+          this.advance();
+          if (this.check(TokenType.RBRACE)) {
+            this.advance();
+            paramNode.defaultValue = {
+              type: 'ObjectExpression',
+              properties: [],
+              line: valTok.line,
+              column: valTok.column,
+            };
+          } else {
+            return null;
+          }
         } else {
           return null;
         }
