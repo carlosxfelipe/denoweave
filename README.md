@@ -112,6 +112,11 @@ them from the project root:
   ```bash
   deno task cli --script examples/csv-to-xml/transform.dwl --input examples/csv-to-xml/input.csv --out xml
   ```
+- **YAML Kubernetes Pods:** Parse a K8s Deployment YAML and extract environment
+  variables.
+  ```bash
+  deno run --allow-read examples/yaml-k8s-pod/run.ts
+  ```
 - **Error Handling:** Safely process a batch with malformed records using
   `try()`.
   ```bash

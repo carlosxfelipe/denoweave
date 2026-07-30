@@ -228,7 +228,14 @@ async function handleExamples(_req: Request): Promise<Response> {
               );
               payloadFormat = 'xml';
             } catch {
-              // ignore, keep payload as 'null'
+              try {
+                payload = await Deno.readTextFile(
+                  new URL('input.yaml', examplePath),
+                );
+                payloadFormat = 'yaml';
+              } catch {
+                // ignore, keep payload as 'null'
+              }
             }
           }
         }
