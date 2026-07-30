@@ -135,6 +135,29 @@ them from the project root:
   ```bash
   deno run --allow-net --allow-read examples/pipeline/run.ts
   ```
+- **NDJSON Logs Processing:** Parse and filter streaming log lines.
+  ```bash
+  deno run --allow-read examples/ndjson-to-json/run.ts <<< "n"
+  ```
+- **Multipart Form Data:** Extract files and fields from a raw HTTP upload body.
+  ```bash
+  deno run --allow-read examples/multipart-to-json/run.ts <<< "n"
+  ```
+- **URLEncoded Forms:** Parse x-www-form-urlencoded into deeply nested JSON
+  structures.
+  ```bash
+  deno run --allow-read examples/urlencoded-to-json/run.ts <<< "n"
+  ```
+- **XLSX Aggregation:** Read Microsoft Excel binary sheets and perform grouping
+  and aggregations.
+  ```bash
+  deno run --allow-read examples/xlsx-to-json/run.ts <<< "n"
+  ```
+- **Plain Text Splitting:** Split, map and reduce unstructured text reports into
+  objects.
+  ```bash
+  deno run --allow-read examples/text-processing/run.ts <<< "n"
+  ```
 
 ---
 
