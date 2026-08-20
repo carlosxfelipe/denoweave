@@ -400,6 +400,38 @@ class Evaluator {
         return this.castValue(val, node.targetType, props);
       }
 
+      case 'KeyExistenceExpression': {
+        const innerExpr = node.expression;
+        // For MemberExpression: check the parent object has the key
+        if (innerExpr.type === 'MemberExpression') {
+          const parentObj = this.eval(innerExpr.object, env);
+          if (parentObj === null || parentObj === undefined) return false;
+          if (typeof parentObj === 'object' && !Array.isArray(parentObj)) {
+            return Object.prototype.hasOwnProperty.call(
+              parentObj,
+              innerExpr.property.name,
+            );
+          }
+          return false;
+        }
+        // For Identifier: check it's defined and non-null in the env
+        if (innerExpr.type === 'Identifier') {
+          try {
+            const v = env.get(innerExpr.name);
+            return v !== null && v !== undefined;
+          } catch {
+            return false;
+          }
+        }
+        // Generic fallback: evaluate and check non-null
+        try {
+          const v = this.eval(innerExpr, env);
+          return v !== null && v !== undefined;
+        } catch {
+          return false;
+        }
+      }
+
       case 'AnonymousArgExpression':
         return env.get(node.name);
 
@@ -710,8 +742,13 @@ class Evaluator {
         return this.formatDate(val, fmt);
       }
       if (val instanceof Date) return val.toISOString();
-      // Temporal objects → their ISO string representation
-      if (temporal.isTemporal(val)) return val.toString();
+      // Temporal objects with optional format
+      if (temporal.isTemporal(val)) {
+        if (props?.format) {
+          return this.formatTemporalDate(val, String(props.format));
+        }
+        return val.toString();
+      }
       if (typeof val === 'object') return JSON.stringify(val);
       return String(val);
     }
@@ -731,18 +768,26 @@ class Evaluator {
       try {
         switch (target) {
           case 'Date':
-          case 'LocalDate':
-            return temporal.plainDateFrom(str);
+          case 'LocalDate': {
+            // If a custom format is provided (e.g. "dd/MM/yyyy"), parse it first
+            const isoStr = props?.format
+              ? this.parseWithFormat(str, String(props.format))
+              : str;
+            return temporal.plainDateFrom(isoStr);
+          }
           case 'DateTime':
-          case 'LocalDateTime':
-            // Accept both "2024-01-15" (plain date → midnight) and full ISO
-            if (!str.includes('T')) {
-              return temporal.plainDateTimeFrom(str + 'T00:00:00');
+          case 'LocalDateTime': {
+            const isoStr = props?.format
+              ? this.parseWithFormat(str, String(props.format))
+              : str;
+            if (!isoStr.includes('T')) {
+              return temporal.plainDateTimeFrom(isoStr + 'T00:00:00');
             }
-            if (str.includes('Z') || str.match(/[+-]\d\d:\d\d$/)) {
-              return temporal.instantFrom(str);
+            if (isoStr.includes('Z') || isoStr.match(/[+-]\d\d:\d\d$/)) {
+              return temporal.instantFrom(isoStr);
             }
-            return temporal.plainDateTimeFrom(str);
+            return temporal.plainDateTimeFrom(isoStr);
+          }
           case 'LocalTime':
           case 'Time':
             return temporal.plainTimeFrom(str);
@@ -902,12 +947,14 @@ class Evaluator {
 
   private formatDate(date: Date, fmt: string): string {
     const pad = (n: number) => String(n).padStart(2, '0');
+    const pad3 = (n: number) => String(n).padStart(3, '0');
     const yyyy = date.getFullYear();
     const MM = pad(date.getMonth() + 1);
     const dd = pad(date.getDate());
     const HH = pad(date.getHours());
     const mm = pad(date.getMinutes());
     const ss = pad(date.getSeconds());
+    const SSS = pad3(date.getMilliseconds());
 
     return fmt
       .replace('yyyy', String(yyyy))
@@ -915,7 +962,82 @@ class Evaluator {
       .replace('dd', dd)
       .replace('HH', HH)
       .replace('mm', mm)
+      .replace('SSS', SSS)
       .replace('ss', ss);
+  }
+
+  /**
+   * Format a Temporal PlainDate/PlainDateTime-like object to a string
+   * using a DataWeave format pattern (e.g. "yyyy-MM-dd HH:mm:ss.SSS").
+   */
+  private formatTemporalDate(val: unknown, fmt: string): string {
+    // Extract fields via toString() — Temporal always produces ISO 8601
+    const iso = String(val);
+    // ISO: yyyy-MM-ddTHH:mm:ss or yyyy-MM-dd
+    const [datePart, timePart] = iso.split('T');
+    const [yyyy, MM, dd] = (datePart ?? '').split('-');
+    const [HH, mm, ssFull] = (timePart ?? '00:00:00').split(':');
+    const [ss, msFull] = (ssFull ?? '00').split('.');
+    const SSS = (msFull ?? '000').padStart(3, '0').slice(0, 3);
+
+    return fmt
+      .replace('yyyy', yyyy ?? '')
+      .replace('MM', (MM ?? '').padStart(2, '0'))
+      .replace('dd', (dd ?? '').padStart(2, '0'))
+      .replace('HH', (HH ?? '00').padStart(2, '0'))
+      .replace('mm', (mm ?? '00').padStart(2, '0'))
+      .replace('SSS', SSS)
+      .replace('ss', (ss ?? '00').padStart(2, '0'));
+  }
+
+  /**
+   * Parse a date string using a DataWeave format pattern into an ISO 8601 string.
+   * Supports patterns like "dd/MM/yyyy", "MM-dd-yyyy", "dd/MM/yyyy HH:mm:ss".
+   */
+  private parseWithFormat(value: string, format: string): string {
+    // Build a regex from the format tokens
+    const tokenRe = /(yyyy|MM|dd|HH|mm|SSS|ss)/g;
+    let regexStr = '';
+    let lastIdx = 0;
+    const fields: string[] = [];
+
+    let match: RegExpExecArray | null;
+    while ((match = tokenRe.exec(format)) !== null) {
+      // Escape literal text between tokens
+      regexStr += format.slice(lastIdx, match.index).replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&',
+      );
+      regexStr += '(\\d+)';
+      fields.push(match[1]);
+      lastIdx = match.index + match[1].length;
+    }
+    regexStr += format.slice(lastIdx).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const re = new RegExp('^' + regexStr + '$');
+    const m = value.match(re);
+    if (!m) {
+      throw new RuntimeError(
+        `Cannot parse "${value}" with format "${format}"`,
+      );
+    }
+
+    const parts: Record<string, string> = {};
+    fields.forEach((f, i) => {
+      parts[f] = m[i + 1];
+    });
+
+    const yyyy = parts['yyyy'] ?? '1970';
+    const MM = (parts['MM'] ?? '01').padStart(2, '0');
+    const dd = (parts['dd'] ?? '01').padStart(2, '0');
+    const HH = (parts['HH'] ?? '00').padStart(2, '0');
+    const mm = (parts['mm'] ?? '00').padStart(2, '0');
+    const ss = (parts['ss'] ?? '00').padStart(2, '0');
+
+    const hasTime = format.includes('HH') || format.includes('mm');
+    return hasTime
+      ? `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}`
+      : `${yyyy}-${MM}-${dd}`;
   }
 }
 

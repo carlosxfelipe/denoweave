@@ -1,5 +1,6 @@
 import { assertEquals } from '@std/assert';
 import { evaluate } from '../evaluator/evaluator.ts';
+import { SYSTEM_FUNCTIONS } from './system.ts';
 
 // ── String functions ──────────────────────────────────────────────────────────
 
@@ -399,4 +400,18 @@ Deno.test('Stdlib: read', () => {
 Deno.test('Stdlib: write', () => {
   const str = evaluate('write({ "a": 1 }, "application/json")') as string;
   assertEquals(JSON.parse(str), { a: 1 });
+});
+
+import { setProperties } from './system.ts';
+
+Deno.test('Stdlib: p() property function', () => {
+  const p = SYSTEM_FUNCTIONS.p as any;
+  setProperties({ 'app.name': 'DenoWeave', 'app.version': '1.0' });
+
+  assertEquals(p('app.name'), 'DenoWeave');
+  assertEquals(p('app.version'), '1.0');
+  assertEquals(p('missing.prop'), null);
+
+  // Clean up
+  setProperties({});
 });

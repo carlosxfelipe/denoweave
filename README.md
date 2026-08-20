@@ -186,15 +186,21 @@ DataWeave 2.x syntax:
 - **Core Types**: Strings, Numbers, Booleans, Null, Arrays, Objects.
 - **Dates & Math**: Native Temporal API support for ISO 8601 Date and Period
   literals (`|2024-02-20|`, `|P1D|`) with full date/time math capabilities (e.g.
-  `|2024-02-28| + |P1D|`).
+  `|2024-02-28| + |P1D|`). Also supports custom date parsing and formatting via
+  `as Date {format: "dd/MM/yyyy"}`.
 - **Modules & Namespaces**: Full support for `import` statements (e.g.
   `import * from dw::core::Strings`, `import sum from custom::Math`) and
   encapsulated namespace resolution.
 - **Operations**: Arithmetic, logical with short-circuit evaluation (`and`,
   `or`, `not`), comparisons, default (`default`), casting (`as`),
   array/string/object concatenation (`++`), and range slicing (`to`).
+- **Object Properties**: Supports dynamic keys `(expr): value`, shorthand
+  `{ name }`, and conditional properties `(key: value) if (cond)`.
 - **Selectors**: Deep descendant selector (`..`) to traverse and query deeply
-  nested data structures.
+  nested data structures, and field existence operator (`expr?`) to check if a
+  key exists without confusing it with `null`.
+- **Context & Properties**: Injection of context variables (`vars.region`) and
+  properties (`p("store.id")`) via the CLI.
 - **Functions & Lambdas**: Named functions (`fun`), single-param lambdas
   (`(x) -> x`), multi-param lambdas, anonymous lambdas (`$`, `$$`).
 - **Infix Higher-Order Functions**: `map`, `filter`, `reduce`, plus

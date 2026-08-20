@@ -795,3 +795,57 @@ Deno.test('Evaluator: Temporal value as String returns ISO representation', () =
   `);
   assertEquals(result, '2024-03-15');
 });
+
+// --- New Features Tests ---
+
+Deno.test('Evaluator: field existence operator (expr?)', () => {
+  const ctx = { payload: { a: 1, b: null } };
+
+  // field a exists and has value
+  assertEquals(evaluate('payload.a?', ctx), true);
+  // field b exists but is null
+  assertEquals(evaluate('payload.b?', ctx), true);
+  // field c does not exist
+  assertEquals(evaluate('payload.c?', ctx), false);
+  // non-objects return false safely
+  assertEquals(evaluate('payload.a.x?', ctx), false);
+});
+
+Deno.test('Evaluator: conditional properties (key: value) if (cond)', () => {
+  const ctx = { payload: { a: 1, b: null } };
+
+  const result = evaluate(
+    `{
+    (foo: payload.a) if (payload.a?),
+    (bar: payload.c) if (payload.c?),
+    (baz: 42) if true
+  }`,
+    ctx,
+  );
+
+  assertEquals(result, { foo: 1, baz: 42 });
+});
+
+Deno.test('Evaluator: custom date parsing and formatting', () => {
+  const ctx = {};
+  // Parse with custom format, then serialize with custom format
+  const result = evaluate(
+    `
+    (|2024-08-15| as String {format: "dd/MM/yyyy"}) ++ " " ++
+    ("15/08/2024" as Date {format: "dd/MM/yyyy"} as String {format: "yyyy-MM-dd"})
+  `,
+    ctx,
+  );
+
+  assertEquals(result, '15/08/2024 2024-08-15');
+});
+
+Deno.test('Evaluator: vars context is accessible', () => {
+  const ctx = {
+    payload: null,
+    vars: { region: 'south-america' },
+  };
+
+  assertEquals(evaluate('vars.region', ctx), 'south-america');
+  assertEquals(evaluate("vars.unknown default 'test'", ctx), 'test');
+});

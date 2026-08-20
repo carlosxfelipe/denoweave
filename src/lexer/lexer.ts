@@ -217,6 +217,8 @@ export class Lexer {
         return this.makeToken(TokenType.LBRACKET, '[', line, col);
       case ']':
         return this.makeToken(TokenType.RBRACKET, ']', line, col);
+      case '?':
+        return this.makeToken(TokenType.QUESTION, '?', line, col);
       default:
         return this.makeToken(TokenType.ILLEGAL, ch, line, col);
     }

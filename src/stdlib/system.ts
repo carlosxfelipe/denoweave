@@ -5,8 +5,39 @@ import {
   serialize,
 } from '../adapters/index.ts';
 
+// ── Properties store (populated by CLI via setProperties) ────────────────────
+
+let _properties: Record<string, string> = {};
+
+/**
+ * Inject a properties map that `p(key)` will read from.
+ * Call this before evaluating any script that uses `p()`.
+ */
+export function setProperties(props: Record<string, string>): void {
+  _properties = { ..._properties, ...props };
+}
+
 export const SYSTEM_FUNCTIONS: Record<string, Value> = {
   now: (() => new Date()) as DWFunction,
+
+  /**
+   * `p(key)` — Read a property by key.
+   * Priority: injected properties store → Deno env vars.
+   * Returns null (not an error) when the key is not found,
+   * so it can be chained with `default`.
+   */
+  p: ((key: Value): Value => {
+    const k = String(key);
+    if (Object.prototype.hasOwnProperty.call(_properties, k)) {
+      return _properties[k];
+    }
+    // Fallback: environment variable
+    try {
+      return Deno.env.get(k) ?? null;
+    } catch {
+      return null;
+    }
+  }) as DWFunction,
 
   try: ((lambda: Value): Value => {
     if (typeof lambda !== 'function') {

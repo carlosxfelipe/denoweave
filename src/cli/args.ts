@@ -24,6 +24,13 @@ export interface CliArgs {
   version: boolean;
   /** Pretty-print output (default: true) */
   pretty: boolean;
+  /**
+   * Runtime `vars` injected as `vars.key` in the script.
+   * Each entry is a raw `key=value` or `key=jsonValue` string.
+   */
+  vars: string[];
+  /** Path to a properties file (.properties, .json, or .yaml) for `p()` */
+  props: string | null;
 }
 
 export const HELP_TEXT = `
@@ -42,6 +49,11 @@ OPTIONS:
       --indent  <n>         Indentation width for JSON/XML output   [default: 2]
       --delimiter <char>    CSV column delimiter                    [default: ,]
       --no-pretty           Disable pretty-printing (compact JSON)
+      --var     <key=val>   Inject a vars entry (repeatable). Value can be a
+                            JSON literal or a plain string.
+                            Example: --var "userId=42" --var 'tags=["a","b"]'
+      --props   <file>      Load a properties file (.properties, .json, .yaml)
+                            Provides values for the p("key") function.
   -h, --help                Show this help message
   -v, --version             Show version
 
@@ -68,6 +80,12 @@ EXAMPLES:
   deno run --allow-read src/cli/main.ts \\
     --input data.json --out xml \\
     --expr 'groupBy(payload, (r) -> r.category)'
+
+  # Script with vars and properties
+  echo '{"id":1}' | deno run --allow-read src/cli/main.ts \\
+    --script transform.dwl \\
+    --var 'env=production' --var 'config={"timeout":30}' \\
+    --props app.properties
 `.trim();
 
 export const VERSION = '0.1.0';
@@ -84,6 +102,8 @@ export function parseArgs(argv: string[]): CliArgs {
     help: false,
     version: false,
     pretty: true,
+    vars: [],
+    props: null,
   };
 
   let i = 0;
@@ -125,6 +145,12 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--delimiter':
         args.delimiter = argv[++i];
+        break;
+      case '--var':
+        args.vars.push(argv[++i]);
+        break;
+      case '--props':
+        args.props = argv[++i];
         break;
       default:
         // Positional: treat as input file if not yet set

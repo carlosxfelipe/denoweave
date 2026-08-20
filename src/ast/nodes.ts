@@ -36,7 +36,8 @@ export type NodeType =
   | 'AnonymousArgExpression'
   | 'DynamicExpansion'
   | 'TemporalLiteral'
-  | 'ImportDeclaration';
+  | 'ImportDeclaration'
+  | 'KeyExistenceExpression';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
 
@@ -240,6 +241,18 @@ export interface AnonymousArgExpression extends BaseNode {
   name: '$' | '$$';
 }
 
+/**
+ * `expr?` — key-existence check.
+ * Returns `true` if `expression` resolves to a non-null value AND the
+ * field actually exists in its parent object (not just a null value).
+ * Used with `(Field: value) if (obj.field?)` to emit optional fields.
+ */
+export interface KeyExistenceExpression extends BaseNode {
+  type: 'KeyExistenceExpression';
+  /** The expression whose existence is tested (typically a MemberExpression). */
+  expression: Expression;
+}
+
 // ── do block ────────────────────────────────────────────────────────────────
 
 /**
@@ -354,7 +367,8 @@ export type Expression =
   | AnonymousArgExpression
   | DoExpression
   | MatchExpression
-  | TemporalLiteral;
+  | TemporalLiteral
+  | KeyExistenceExpression;
 
 export type AnyNode =
   | Program

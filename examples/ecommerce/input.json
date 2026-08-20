@@ -1,0 +1,33 @@
+{
+  "id": "ORD-2024-00042",
+  "status": "confirmed",
+  "currency": "BRL",
+  "placedAt": "15/08/2024",
+  "customer": {
+    "name": "Ana Souza",
+    "email": "ana.souza@example.com",
+    "vip": true,
+    "loyaltyPoints": 350
+  },
+  "items": [
+    {
+      "sku": "HDPH-001",
+      "description": "Wireless Headphones",
+      "quantity": 1,
+      "unitPrice": 299.90,
+      "discount": 30.00,
+      "notes": "Gift wrap requested"
+    },
+    {
+      "sku": "CBL-USB-C",
+      "description": "USB-C Cable 2m",
+      "quantity": 2,
+      "unitPrice": 29.90
+    }
+  ],
+  "totals": {
+    "subtotal": 359.70,
+    "shipping": 15.00,
+    "total": 344.70
+  }
+}

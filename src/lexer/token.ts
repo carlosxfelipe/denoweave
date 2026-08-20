@@ -80,6 +80,7 @@ export enum TokenType {
   // ── Special ───────────────────────────────────────────────
   DOLLAR = 'DOLLAR', // $
   DOUBLE_DOLLAR = 'DOUBLE_DOLLAR', // $$
+  QUESTION = 'QUESTION', // ? (key-existence postfix)
   EOF = 'EOF',
   ILLEGAL = 'ILLEGAL',
 }

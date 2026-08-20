@@ -231,6 +231,11 @@ async function handleStatic(req: Request): Promise<Response> {
     return new Response('Forbidden', { status: 403 });
   }
 
+  // Ignore favicon to prevent 404s in the browser console
+  if (pathname === '/favicon.ico') {
+    return new Response(null, { status: 204 });
+  }
+
   const filePath = new URL('.' + pathname, PLAYGROUND_DIR);
 
   try {

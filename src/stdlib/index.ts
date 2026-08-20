@@ -29,4 +29,4 @@ export { STRING_FUNCTIONS } from './string.ts';
 export { ARRAY_FUNCTIONS } from './array.ts';
 export { OBJECT_FUNCTIONS } from './object.ts';
 export { MATH_FUNCTIONS } from './math.ts';
-export { SYSTEM_FUNCTIONS } from './system.ts';
+export { setProperties, SYSTEM_FUNCTIONS } from './system.ts';

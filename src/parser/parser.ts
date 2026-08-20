@@ -764,6 +764,14 @@ export class Parser {
       } else if (this.check(TokenType.MATCH)) {
         const mTok = this.advance(); // consume `match`
         expr = this.parseMatchExpression(expr, mTok.line, mTok.column);
+      } else if (this.check(TokenType.QUESTION)) {
+        const qTok = this.advance(); // consume `?`
+        expr = {
+          type: 'KeyExistenceExpression',
+          expression: expr,
+          line: qTok.line,
+          column: qTok.column,
+        };
       } else {
         break;
       }
@@ -1079,27 +1087,151 @@ export class Parser {
 
       if (this.check(TokenType.LPAREN)) {
         const parenTok = this.advance();
-        const expr = this.parseExpression();
-        this.expect(TokenType.RPAREN);
 
-        if (this.check(TokenType.COLON)) {
-          this.advance();
-          const value = this.parseExpression();
-          properties.push({
-            type: 'Property',
-            key: expr,
-            value,
-            shorthand: false,
-            line: parenTok.line,
-            column: parenTok.column,
-          });
+        // Peek ahead: is the pattern `(ident :` or `("string" :`?
+        // That means a literal-key conditional property: (key: value) if (cond)
+        const nextTok = this.peek();
+        const nextNextTok = this.peekAhead(1);
+        const isLiteralKeyProp = (
+          nextTok.type === TokenType.IDENT ||
+          Object.values(KEYWORDS).includes(nextTok.type) ||
+          nextTok.type === TokenType.STRING
+        ) && nextNextTok?.type === TokenType.COLON;
+
+        if (isLiteralKeyProp) {
+          // `(key: value) [if (cond)]`
+          const keyTokInner = this.advance(); // consume key identifier/string
+          const propKey: AST.Identifier | AST.Literal =
+            keyTokInner.type === TokenType.STRING
+              ? {
+                type: 'Literal',
+                value: keyTokInner.value,
+                raw: `"${keyTokInner.value}"`,
+                line: keyTokInner.line,
+                column: keyTokInner.column,
+              }
+              : {
+                type: 'Identifier',
+                name: keyTokInner.value,
+                line: keyTokInner.line,
+                column: keyTokInner.column,
+              };
+          this.expect(TokenType.COLON);
+          const propValue = this.parseExpression();
+          this.expect(TokenType.RPAREN);
+
+          // Optional conditional: `if (cond)` or `if cond`
+          if (this.check(TokenType.IF)) {
+            this.advance();
+            const hasParen = this.check(TokenType.LPAREN);
+            if (hasParen) this.advance();
+            const cond = this.parseExpression();
+            if (hasParen) this.expect(TokenType.RPAREN);
+            // Wrap in DynamicExpansion of an if-expression:
+            // produces {} when false, {key: value} when true
+            const ifExpr: AST.IfExpression = {
+              type: 'IfExpression',
+              condition: cond,
+              consequent: {
+                type: 'ObjectExpression',
+                properties: [{
+                  type: 'Property',
+                  key: propKey,
+                  value: propValue,
+                  shorthand: false,
+                  line: parenTok.line,
+                  column: parenTok.column,
+                }],
+                line: parenTok.line,
+                column: parenTok.column,
+              },
+              alternate: {
+                type: 'ObjectExpression',
+                properties: [],
+                line: parenTok.line,
+                column: parenTok.column,
+              },
+              line: parenTok.line,
+              column: parenTok.column,
+            };
+            properties.push({
+              type: 'DynamicExpansion',
+              expression: ifExpr,
+              line: parenTok.line,
+              column: parenTok.column,
+            });
+          } else {
+            properties.push({
+              type: 'Property',
+              key: propKey,
+              value: propValue,
+              shorthand: false,
+              line: parenTok.line,
+              column: parenTok.column,
+            });
+          }
         } else {
-          properties.push({
-            type: 'DynamicExpansion',
-            expression: expr,
-            line: parenTok.line,
-            column: parenTok.column,
-          });
+          // Dynamic expression key: `(expr): value` or dynamic expansion `(expr)`
+          const expr = this.parseExpression();
+          this.expect(TokenType.RPAREN);
+
+          if (this.check(TokenType.COLON)) {
+            this.advance();
+            const value = this.parseExpression();
+            properties.push({
+              type: 'Property',
+              key: expr,
+              value,
+              shorthand: false,
+              line: parenTok.line,
+              column: parenTok.column,
+            });
+          } else {
+            // Dynamic expansion `(expr)` — optionally followed by `if`
+            if (this.check(TokenType.IF)) {
+              this.advance();
+              const hasParen = this.check(TokenType.LPAREN);
+              if (hasParen) this.advance();
+              const cond = this.parseExpression();
+              if (hasParen) this.expect(TokenType.RPAREN);
+              const ifExpr: AST.IfExpression = {
+                type: 'IfExpression',
+                condition: cond,
+                consequent: {
+                  type: 'ObjectExpression',
+                  properties: [{
+                    type: 'DynamicExpansion',
+                    expression: expr,
+                    line: parenTok.line,
+                    column: parenTok.column,
+                  }],
+                  line: parenTok.line,
+                  column: parenTok.column,
+                },
+                alternate: {
+                  type: 'ObjectExpression',
+                  properties: [],
+                  line: parenTok.line,
+                  column: parenTok.column,
+                },
+                line: parenTok.line,
+                column: parenTok.column,
+              };
+              properties.push({
+                type: 'DynamicExpansion',
+                expression: ifExpr,
+                line: parenTok.line,
+                column: parenTok.column,
+              });
+            } else {
+              properties.push({
+                type: 'DynamicExpansion',
+                expression: expr,
+                line: parenTok.line,
+                column: parenTok.column,
+              });
+            }
+          }
         }
       } else {
         let key: AST.Identifier | AST.Literal;
