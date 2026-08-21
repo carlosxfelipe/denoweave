@@ -140,7 +140,7 @@ export class Lexer {
           this.advance();
           return this.makeToken(TokenType.NEQ, '!=', line, col);
         }
-        return this.makeToken(TokenType.ILLEGAL, '!', line, col);
+        return this.makeToken(TokenType.BANG, '!', line, col);
       }
       case '<': {
         if (this.peek() === '=') {
@@ -217,8 +217,13 @@ export class Lexer {
         return this.makeToken(TokenType.LBRACKET, '[', line, col);
       case ']':
         return this.makeToken(TokenType.RBRACKET, ']', line, col);
-      case '?':
+      case '?': {
+        if (this.peek() === '.') {
+          this.advance();
+          return this.makeToken(TokenType.OPTIONAL_CHAIN, '?.', line, col);
+        }
         return this.makeToken(TokenType.QUESTION, '?', line, col);
+      }
       default:
         return this.makeToken(TokenType.ILLEGAL, ch, line, col);
     }

@@ -81,6 +81,8 @@ export enum TokenType {
   DOLLAR = 'DOLLAR', // $
   DOUBLE_DOLLAR = 'DOUBLE_DOLLAR', // $$
   QUESTION = 'QUESTION', // ? (key-existence postfix)
+  OPTIONAL_CHAIN = 'OPTIONAL_CHAIN', // ?.
+  BANG = 'BANG', // !
   EOF = 'EOF',
   ILLEGAL = 'ILLEGAL',
 }

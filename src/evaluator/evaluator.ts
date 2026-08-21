@@ -99,10 +99,21 @@ class Evaluator {
 
       case 'MemberExpression': {
         const obj = this.eval(node.object, env);
+        if (node.optional && (obj === null || obj === undefined)) {
+          return null;
+        }
         if (node.isDeep) {
           return this.getDeepProperty(obj, node.property.name);
         }
         return this.getProperty(obj, node.property.name);
+      }
+
+      case 'NonNullExpression': {
+        const val = this.eval(node.argument, env);
+        if (val === null || val === undefined) {
+          throw new RuntimeError(`Value is null but asserted non-null (!)`);
+        }
+        return val;
       }
 
       case 'IndexExpression': {

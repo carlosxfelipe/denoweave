@@ -197,8 +197,9 @@ DataWeave 2.x syntax:
 - **Object Properties**: Supports dynamic keys `(expr): value`, shorthand
   `{ name }`, and conditional properties `(key: value) if (cond)`.
 - **Selectors**: Deep descendant selector (`..`) to traverse and query deeply
-  nested data structures, and field existence operator (`expr?`) to check if a
-  key exists without confusing it with `null`.
+  nested data structures, field existence operator (`expr?`) to check if a key
+  exists, optional chaining (`?.`) for safe navigation, and non-null assertion
+  (`!`) to enforce values.
 - **Context & Properties**: Injection of context variables (`vars.region`) and
   properties (`p("store.id")`) via the CLI.
 - **Functions & Lambdas**: Named functions (`fun`), single-param lambdas

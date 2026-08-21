@@ -706,9 +706,11 @@ export class Parser {
       if (
         this.check(TokenType.DOT) ||
         this.check(TokenType.DOTDOT) ||
-        this.check(TokenType.DOUBLE_COLON)
+        this.check(TokenType.DOUBLE_COLON) ||
+        this.check(TokenType.OPTIONAL_CHAIN)
       ) {
         const isDeep = this.check(TokenType.DOTDOT);
+        const isOptional = this.check(TokenType.OPTIONAL_CHAIN);
         this.advance();
         const prop = this.expectPropName();
         expr = {
@@ -721,9 +723,18 @@ export class Parser {
             column: prop.column,
           },
           isDeep: isDeep || undefined,
+          optional: isOptional || undefined,
           line: expr.line,
           column: expr.column,
         };
+      } else if (this.check(TokenType.BANG)) {
+        this.advance();
+        expr = {
+          type: 'NonNullExpression',
+          argument: expr,
+          line: expr.line,
+          column: expr.column,
+        } as AST.NonNullExpression;
       } else if (this.check(TokenType.LBRACKET)) {
         const open = this.advance();
         const index = this.parseExpression();

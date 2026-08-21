@@ -37,7 +37,8 @@ export type NodeType =
   | 'DynamicExpansion'
   | 'TemporalLiteral'
   | 'ImportDeclaration'
-  | 'KeyExistenceExpression';
+  | 'KeyExistenceExpression'
+  | 'NonNullExpression';
 
 // ── Shared base ─────────────────────────────────────────────────────────────
 
@@ -85,6 +86,14 @@ export interface MemberExpression extends BaseNode {
   property: Identifier;
   /** True if this is a deep descendant selector (`..`) */
   isDeep?: boolean;
+  /** True if this is an optional selector (`?.`) */
+  optional?: boolean;
+}
+
+/** `expression!` — non-null assertion */
+export interface NonNullExpression extends BaseNode {
+  type: 'NonNullExpression';
+  argument: Expression;
 }
 
 /** `object[index]` — computed member access */
@@ -368,7 +377,8 @@ export type Expression =
   | DoExpression
   | MatchExpression
   | TemporalLiteral
-  | KeyExistenceExpression;
+  | KeyExistenceExpression
+  | NonNullExpression;
 
 export type AnyNode =
   | Program

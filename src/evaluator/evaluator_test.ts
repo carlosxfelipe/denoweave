@@ -849,3 +849,32 @@ Deno.test('Evaluator: vars context is accessible', () => {
   assertEquals(evaluate('vars.region', ctx), 'south-america');
   assertEquals(evaluate("vars.unknown default 'test'", ctx), 'test');
 });
+
+Deno.test('Evaluator: optional chaining (?.)', () => {
+  const ctx = { payload: { a: null } };
+
+  // Safe navigation returns null
+  assertEquals(evaluate('payload.a?.b?.c', ctx), null);
+  assertEquals(evaluate('payload.missing?.x', ctx), null);
+
+  // Normal navigation throws
+  assertThrows(
+    () => evaluate('payload.a.b', ctx),
+    RuntimeError,
+    'Cannot access property "b" of null',
+  );
+});
+
+Deno.test('Evaluator: non-null assertion (!)', () => {
+  const ctx = { payload: { a: 1, b: null } };
+
+  // Exists, returns value
+  assertEquals(evaluate('payload.a!', ctx), 1);
+
+  // Null, throws
+  assertThrows(
+    () => evaluate('payload.b!', ctx),
+    RuntimeError,
+    'Value is null but asserted non-null (!)',
+  );
+});
