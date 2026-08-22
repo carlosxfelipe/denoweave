@@ -878,3 +878,114 @@ Deno.test('Evaluator: non-null assertion (!)', () => {
     'Value is null but asserted non-null (!)',
   );
 });
+
+// ── Error suggestions (Did you mean?) ────────────────────────────────────────
+
+import { assertMatch } from '@std/assert';
+
+Deno.test('Evaluator: ReferenceError suggests close name', () => {
+  // "paylaod" is close to "payload" (edit distance 2)
+  try {
+    evaluate('paylaod.name', { payload: { name: 'Alice' } });
+    throw new Error('Expected ReferenceError');
+  } catch (e) {
+    assertMatch((e as Error).message, /Did you mean: "payload"/);
+  }
+});
+
+Deno.test('Evaluator: ReferenceError no suggestion for very different name', () => {
+  // "xyz123abc" has no close match in stdlib/context — no suggestion
+  try {
+    evaluate('xyz123abc');
+    throw new Error('Expected ReferenceError');
+  } catch (e) {
+    const msg = (e as Error).message;
+    // Should mention the variable name
+    assertMatch(msg, /Undefined variable/);
+  }
+});
+
+// ── groupBy with diverse key types ───────────────────────────────────────────
+
+Deno.test('Stdlib: groupBy with numeric keys produces string keys', () => {
+  const result = evaluate(
+    'groupBy([1,2,3,4], (n) -> if (n > 2) 1 else 0)',
+  ) as Record<string, unknown>;
+  // Keys must be strings even though the function returned numbers
+  assertEquals(Object.keys(result).sort(), ['0', '1']);
+  assertEquals((result['1'] as number[]).sort(), [3, 4]);
+  assertEquals((result['0'] as number[]).sort(), [1, 2]);
+});
+
+Deno.test('Stdlib: groupBy with null key uses "null" string key', () => {
+  const result = evaluate(
+    'groupBy(items, (x) -> if (x.cat?) x.cat else null)',
+    { items: [{ cat: 'a', v: 1 }, { v: 2 }, { cat: 'a', v: 3 }] },
+  ) as Record<string, unknown>;
+  assertEquals(Object.keys(result).includes('null'), true);
+  assertEquals(Object.keys(result).includes('a'), true);
+});
+
+Deno.test('Stdlib: groupBy with boolean keys', () => {
+  const result = evaluate(
+    'groupBy([1,2,3,4,5], (n) -> n > 3)',
+  ) as Record<string, unknown>;
+  assertEquals(Object.keys(result).sort(), ['false', 'true']);
+});
+
+// ── Multi-output script splitting ────────────────────────────────────────────
+
+import { splitMultiOutputScript } from './evaluator.ts';
+
+Deno.test('splitMultiOutputScript: single output returns one block', () => {
+  const src = `output application/json
+---
+{ a: 1 }`;
+  const blocks = splitMultiOutputScript(src);
+  assertEquals(blocks.length, 1);
+  assertEquals(blocks[0].format, 'json');
+});
+
+Deno.test('splitMultiOutputScript: two outputs returns two blocks', () => {
+  const src = `%dw 2.0
+var n = 42
+output application/json
+---
+{ value: n }
+output application/csv
+---
+[{ col: n }]`;
+  const blocks = splitMultiOutputScript(src);
+  assertEquals(blocks.length, 2);
+  assertEquals(blocks[0].format, 'json');
+  assertEquals(blocks[1].format, 'csv');
+});
+
+Deno.test('splitMultiOutputScript: each block evaluates independently', () => {
+  const src = `%dw 2.0
+var x = 10
+output application/json
+---
+{ double: x * 2 }
+output application/json
+---
+{ triple: x * 3 }`;
+  const blocks = splitMultiOutputScript(src);
+  assertEquals(blocks.length, 2);
+  const r1 = evaluate(blocks[0].source) as Record<string, unknown>;
+  const r2 = evaluate(blocks[1].source) as Record<string, unknown>;
+  assertEquals(r1['double'], 20);
+  assertEquals(r2['triple'], 30);
+});
+
+Deno.test('splitMultiOutputScript: MIME to format mapping', () => {
+  const src = `output text/plain
+---
+"hello"
+output application/xml
+---
+{ root: 1 }`;
+  const blocks = splitMultiOutputScript(src);
+  assertEquals(blocks[0].format, 'text');
+  assertEquals(blocks[1].format, 'xml');
+});

@@ -1192,3 +1192,137 @@ export function evaluate(
 
   return evaluator.eval(ast.body, globalEnv);
 }
+
+// ── Multi-output support ──────────────────────────────────────────────────────
+
+/**
+ * Describes a single output block extracted from a multi-output script.
+ */
+export interface OutputBlock {
+  /** MIME-based format string, e.g. `"json"`, `"csv"`, `"xml"`, `"yaml"`, `"text"`. */
+  format: string;
+  /** The full DSL source for this block (including any shared header declarations). */
+  source: string;
+}
+
+/**
+ * Split a DataWeave script that contains multiple `output ... ---` blocks into
+ * individual {@link OutputBlock} items, each with its own format and body.
+ *
+ * A multi-output script looks like:
+ * ```
+ * %dw 2.0
+ * var shared = payload.items
+ * output application/json
+ * ---
+ * { count: sizeOf(shared) }
+ * output application/csv
+ * ---
+ * shared map ((item) -> { name: item.name })
+ * ```
+ *
+ * If the script has only one output block (or none), returns a single-element
+ * array so callers can always iterate uniformly.
+ *
+ * @param source  The full DWL script source.
+ * @returns       Array of {@link OutputBlock}s (at least one element).
+ */
+export function splitMultiOutputScript(source: string): OutputBlock[] {
+  // Normalise line endings
+  const src = source.replace(/\r\n/g, '\n');
+
+  // Regex that matches an `output <mime>` line followed (possibly after other
+  // header tokens) by a `---` separator on its own line.
+  // We collect every occurrence as a potential block boundary.
+  const outputLineRe =
+    /^[ \t]*output[ \t]+(application|text)\/([a-zA-Z0-9+\-_.]+)[^\n]*$/gm;
+
+  interface RawBlock {
+    outputLine: number; // index of the `output` line in `lines`
+    format: string;
+    separatorLine: number; // index of the `---` line that follows
+  }
+
+  const lines = src.split('\n');
+  const rawBlocks: RawBlock[] = [];
+
+  let m: RegExpExecArray | null;
+  while ((m = outputLineRe.exec(src)) !== null) {
+    const mime = `${m[1]}/${m[2]}`;
+    // Map character offset → line index
+    const charsBefore = src.slice(0, m.index);
+    const outputLineIdx = charsBefore.split('\n').length - 1;
+
+    // Look for the next `---` separator after this output line
+    let sepLineIdx = -1;
+    for (let i = outputLineIdx + 1; i < lines.length; i++) {
+      if (/^---\s*$/.test(lines[i])) {
+        sepLineIdx = i;
+        break;
+      }
+      // If we hit another `output` directive before `---`, bail out
+      if (/^[ \t]*output[ \t]/.test(lines[i])) break;
+    }
+    if (sepLineIdx === -1) continue; // no matching `---`, skip
+
+    rawBlocks.push({
+      outputLine: outputLineIdx,
+      format: mimeToFormat(mime),
+      separatorLine: sepLineIdx,
+    });
+  }
+
+  // No multi-output markers found — return the whole script as-is
+  if (rawBlocks.length <= 1) {
+    const format = rawBlocks.length === 1 ? rawBlocks[0].format : 'json';
+    return [{ format, source: src }];
+  }
+
+  // Extract the shared header (everything before the first `output` line)
+  const sharedHeaderLines = lines.slice(0, rawBlocks[0].outputLine);
+  // Keep %dw directive if present; ensure header ends with a placeholder separator
+  // We'll re-add it per block.
+  const sharedHeader = sharedHeaderLines.join('\n');
+
+  const blocks: OutputBlock[] = [];
+  for (let bi = 0; bi < rawBlocks.length; bi++) {
+    const current = rawBlocks[bi];
+    const nextOutputLine = bi + 1 < rawBlocks.length
+      ? rawBlocks[bi + 1].outputLine
+      : lines.length;
+
+    // Body lines are everything after the `---` separator up to the next block
+    const bodyLines = lines.slice(current.separatorLine + 1, nextOutputLine);
+    // Remove trailing empty lines from body
+    while (
+      bodyLines.length > 0 && bodyLines[bodyLines.length - 1].trim() === ''
+    ) {
+      bodyLines.pop();
+    }
+
+    // Compose a standalone script: shared header + output directive + --- + body
+    const outputDirective = lines[current.outputLine];
+    const blockSource = [
+      sharedHeader,
+      outputDirective,
+      '---',
+      ...bodyLines,
+    ].filter((l, i) => i > 0 || l.trim() !== '').join('\n');
+
+    blocks.push({ format: current.format, source: blockSource });
+  }
+
+  return blocks;
+}
+
+/** Convert a MIME type string to a format key recognised by the adapters. */
+function mimeToFormat(mime: string): string {
+  if (mime.includes('json')) return 'json';
+  if (mime.includes('csv')) return 'csv';
+  if (mime.includes('xml')) return 'xml';
+  if (mime.includes('yaml') || mime.includes('yml')) return 'yaml';
+  if (mime.includes('ndjson') || mime.includes('x-ndjson')) return 'ndjson';
+  if (mime.includes('urlencoded')) return 'urlencoded';
+  if (mime.includes('multipart')) return 'multipart';
+  return 'text';
+}

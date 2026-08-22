@@ -93,6 +93,11 @@ them from the project root:
   ```bash
   deno run --allow-read examples/json-to-json/run.ts
   ```
+- **JSON to DataWeave Literal (`application/dw`):** Serialize data into native
+  DataWeave notation, useful for generating static configurations.
+  ```bash
+  deno run --allow-read examples/json-to-dw/run.ts
+  ```
 - **Deep Descendant Selector (`..`):** Traverse deeply nested JSON to find
   values.
   ```bash
@@ -158,6 +163,23 @@ them from the project root:
   ```bash
   deno run --allow-read examples/text-processing/run.ts <<< "n"
   ```
+- **E-commerce Order Enrichment (CLI):** Enrich an order payload using `vars`,
+  `p()` properties, `expr?` existence checks and custom date parsing — all
+  features injected via CLI flags.
+  ```bash
+  deno task cli \
+    --input  examples/ecommerce/input.json \
+    --script examples/ecommerce/transform.dwl \
+    --props  examples/ecommerce/app.properties \
+    --var 'region=south-america' \
+    --var 'agentId=worker-07'
+  ```
+- **Multi-output Report:** Produce a JSON enriched list and a CSV export from
+  the same sales payload in a single `.dwl` script, using conditional fields and
+  multi-output blocks.
+  ```bash
+  deno run --allow-read examples/multi-output/run.ts
+  ```
 
 ---
 
@@ -214,6 +236,14 @@ DataWeave 2.x syntax:
 - **Scoping**: Local scope evaluation via `do { ... }` blocks.
 - **Control Flow & Error Handling**: `if / else` expressions and safe evaluation
   using `try()`.
+- **Multi-output Scripts**: A single `.dwl` file can declare multiple
+  `output <mime> --- <body>` blocks, each with its own output format. The CLI
+  evaluates all blocks against the same input and prints each result separated
+  by a blank line.
+- **Smart Error Suggestions**: When an undefined variable is referenced, the
+  runtime computes the Levenshtein distance against all names visible in scope
+  (locals, `var` declarations, and the full stdlib) and suggests the closest
+  match — e.g. `Did you mean: "payload"?`.
 - **Utilities**: Built-in stdlib functions including advanced deep object
   merging via `update`.
 
@@ -274,6 +304,9 @@ deno task cli --input data.csv --out xml \
 
 # Run DSL script from a .dwl file
 deno task cli --script script.dwl --input data.json
+
+# Multi-output script (two formats from one file)
+deno task cli --script multi.dwl --input data.json
 ```
 
 ---
@@ -380,6 +413,72 @@ Output:
 
 ---
 
+## Multi-output Scripts
+
+A single `.dwl` file can produce multiple outputs in different formats. Declare
+several `output <mime> ---` blocks, each with its own body expression. All
+blocks share the same header declarations (`%dw`, `var`, `fun`, `type`).
+
+```dw
+%dw 2.0
+var items = payload.items
+
+output application/json
+---
+{ total: sizeOf(items), ids: items map ($.id) }
+
+output application/csv
+---
+items map ((item) -> { name: item.name, price: item.price })
+```
+
+```bash
+deno task cli --script report.dwl --input data.json
+# → {"total":3,"ids":[1,2,3]}
+#
+# name,price
+# Widget,9.99
+# Gadget,24.99
+# Doohickey,4.49
+```
+
+### Routing outputs to files
+
+You can map specific output blocks directly to files using the `--target` flag
+(format: `<block_index>:<file_path>`).
+
+```bash
+deno task cli --allow-write --script report.dwl --input data.json \
+  --target 1:report.json \
+  --target 2:report.csv
+```
+
+Unmapped blocks are printed directly to the console (`stdout`).
+
+---
+
+## Smart Error Suggestions
+
+When an undefined variable is referenced, DenoWeave searches all names visible
+in the current scope (local `var`s, function params, and the full stdlib) and
+suggests the closest match using the Levenshtein algorithm:
+
+```
+# Script: payload.users map ((u) -> { name: u.nme })
+#                                              ^^^
+# DenoWeave output:
+# RuntimeError: Cannot access property "nme" of null
+
+# Script: paylaod.users map ...
+# DenoWeave output:
+# ReferenceError: Undefined variable: "paylaod". Did you mean: "payload"?
+```
+
+Suggestions only appear when the edit distance is ≤ 3 to avoid noisy false
+positives.
+
+---
+
 ## Stdlib (Selection)
 
 | Category   | Functions                                                                                                                             |
@@ -415,7 +514,7 @@ dependencies**.
 
 ## Tests
 
-The project includes a suite of more than **340 automated tests** covering the
+The project includes a suite of more than **360 automated tests** covering the
 lexer, parser, evaluator, stdlib, and all data adapters.
 
 To run the tests:

@@ -31,6 +31,8 @@ export interface CliArgs {
   vars: string[];
   /** Path to a properties file (.properties, .json, or .yaml) for `p()` */
   props: string | null;
+  /** Output targets to route specific blocks to files (e.g. `1:report.json`) */
+  targets: string[];
 }
 
 export const HELP_TEXT = `
@@ -54,6 +56,8 @@ OPTIONS:
                             Example: --var "userId=42" --var 'tags=["a","b"]'
       --props   <file>      Load a properties file (.properties, .json, .yaml)
                             Provides values for the p("key") function.
+      --target  <idx:file>  Write the output block at <idx> (1-based) to <file>
+                            Requires --allow-write permission. (repeatable)
   -h, --help                Show this help message
   -v, --version             Show version
 
@@ -104,6 +108,7 @@ export function parseArgs(argv: string[]): CliArgs {
     pretty: true,
     vars: [],
     props: null,
+    targets: [],
   };
 
   let i = 0;
@@ -151,6 +156,9 @@ export function parseArgs(argv: string[]): CliArgs {
         break;
       case '--props':
         args.props = argv[++i];
+        break;
+      case '--target':
+        args.targets.push(argv[++i]);
         break;
       default:
         // Positional: treat as input file if not yet set

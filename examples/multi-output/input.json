@@ -1,0 +1,9 @@
+{
+  "sales": [
+    { "sku": "NB-01", "category": "electronics", "qty": 3, "price": 999.99 },
+    { "sku": "MS-07", "category": "electronics", "qty": 10, "price": 29.90 },
+    { "sku": "CH-12", "category": "furniture", "qty": 2, "price": 349.00 },
+    { "sku": "DS-03", "category": "furniture", "qty": 5, "price": 89.00 },
+    { "sku": "PL-99", "category": "accessories", "qty": 20, "price": 12.50 }
+  ]
+}

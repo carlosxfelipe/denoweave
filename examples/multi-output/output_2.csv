@@ -1,0 +1,6 @@
+sku,category,qty,price,subtotal,tier
+NB-01,electronics,3,999.99,2999.9700000000003,GOLD
+MS-07,electronics,10,29.9,299,BRONZE
+CH-12,furniture,2,349,698,SILVER
+DS-03,furniture,5,89,445,BRONZE
+PL-99,accessories,20,12.5,250,BRONZE

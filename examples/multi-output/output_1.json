@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-08-22",
+  "totalRevenue": 4691.97,
+  "items": [
+    {
+      "sku": "NB-01",
+      "category": "electronics",
+      "subtotal": 2999.97,
+      "tier": "GOLD"
+    },
+    {
+      "sku": "MS-07",
+      "category": "electronics",
+      "subtotal": 299,
+      "tier": "BRONZE",
+      "discount": "10%"
+    },
+    {
+      "sku": "CH-12",
+      "category": "furniture",
+      "subtotal": 698,
+      "tier": "SILVER"
+    },
+    {
+      "sku": "DS-03",
+      "category": "furniture",
+      "subtotal": 445,
+      "tier": "BRONZE"
+    },
+    {
+      "sku": "PL-99",
+      "category": "accessories",
+      "subtotal": 250,
+      "tier": "BRONZE",
+      "discount": "10%"
+    }
+  ]
+}

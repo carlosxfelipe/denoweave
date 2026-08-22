@@ -4,7 +4,10 @@
  * Run: deno run --allow-net --allow-read playground/server.ts
  */
 
-import { evaluate } from '@denoweave/evaluator/evaluator.ts';
+import {
+  evaluate,
+  splitMultiOutputScript,
+} from '@denoweave/evaluator/evaluator.ts';
 import type { Value } from '@denoweave/evaluator/environment.ts';
 import { type Format, parse, serialize } from '@denoweave/adapters/index.ts';
 import { parseXLSX, toXLSX } from '@denoweave/adapters/xlsx.ts';
@@ -119,78 +122,89 @@ async function handleEvaluate(req: Request): Promise<Response> {
     }
   }
 
-  // ── Detect output format ─────────────────────────────────────────────────────
-  const outputFormat = detectOutputFormat(code);
+  // ── Split into output blocks (multi-output support) ─────────────────────────
+  const blocks = splitMultiOutputScript(code);
+  const isMultiOutput = blocks.length > 1;
 
-  // ── Evaluate ─────────────────────────────────────────────────────────────────
-  let result: Value;
-
-  try {
-    const evaluatePromise = new Promise<Value>((resolve, reject) => {
+  const moduleResolver = (moduleName: string) => {
+    const relPath = moduleName.replace(/::/g, '/') + '.dwl';
+    const pathsToTry = [relPath, `examples/modules/${relPath}`];
+    for (const p of pathsToTry) {
       try {
-        const res = evaluate(
-          code,
-          { payload: payloadValue },
-          {
-            moduleResolver: (moduleName: string) => {
-              const relPath = moduleName.replace(/::/g, '/') + '.dwl';
-              const pathsToTry = [
-                relPath,
-                `examples/modules/${relPath}`,
-              ];
-              for (const p of pathsToTry) {
-                try {
-                  return Deno.readTextFileSync(p);
-                } catch {
-                  // ignore
-                }
-              }
-              throw new Error(`Could not resolve module: ${moduleName}`);
-            },
-          },
-        );
-        resolve(res);
-      } catch (e) {
-        reject(e);
+        return Deno.readTextFileSync(p);
+      } catch {
+        // ignore
       }
-    });
+    }
+    throw new Error(`Could not resolve module: ${moduleName}`);
+  };
 
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error('Execution timed out (5s limit)')),
-        TIMEOUT_MS,
-      )
-    );
+  // ── Evaluate each block ───────────────────────────────────────────────────────
+  const parts: string[] = [];
 
-    result = await Promise.race([evaluatePromise, timeout]);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return json({ error: message }, 422);
-  }
+  for (const block of blocks) {
+    let result: Value;
 
-  // ── Serialize output ─────────────────────────────────────────────────────────
-
-  if (outputFormat === 'xlsx') {
-    // Return base64-encoded XLSX bytes
     try {
-      const xlsxBytes = await toXLSX(result);
-      const base64 = btoa(String.fromCharCode(...xlsxBytes));
-      return json({ result: base64, format: 'xlsx', binary: true });
+      const evaluatePromise = new Promise<Value>((resolve, reject) => {
+        try {
+          resolve(
+            evaluate(block.source, { payload: payloadValue }, {
+              moduleResolver,
+            }),
+          );
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error('Execution timed out (5s limit)')),
+          TIMEOUT_MS,
+        )
+      );
+
+      result = await Promise.race([evaluatePromise, timeout]);
     } catch (err) {
-      return json({
-        error: `Failed to serialize as XLSX: ${(err as Error).message}`,
-      }, 422);
+      const message = err instanceof Error ? err.message : String(err);
+      return json({ error: message }, 422);
+    }
+
+    // ── Serialize this block ────────────────────────────────────────────────────
+    const outputFormat = block.format as Format;
+
+    if (outputFormat === 'xlsx') {
+      try {
+        const xlsxBytes = await toXLSX(result);
+        const base64 = btoa(String.fromCharCode(...xlsxBytes));
+        return json({ result: base64, format: 'xlsx', binary: true });
+      } catch (err) {
+        return json({
+          error: `Failed to serialize as XLSX: ${(err as Error).message}`,
+        }, 422);
+      }
+    }
+
+    let serialized = '';
+    try {
+      serialized = serialize(result, outputFormat, { indent: 2 });
+    } catch (_err) {
+      serialized = JSON.stringify(result, null, 2);
+    }
+
+    if (isMultiOutput) {
+      parts.push(
+        `// ── output ${outputFormat.toUpperCase()} ──\n${serialized}`,
+      );
+    } else {
+      parts.push(serialized);
     }
   }
 
-  let serialized = '';
-  try {
-    serialized = serialize(result, outputFormat as Format, { indent: 2 });
-  } catch (_err) {
-    serialized = JSON.stringify(result, null, 2);
-  }
-
-  return json({ result: serialized, format: outputFormat });
+  const finalOutput = parts.join('\n\n');
+  const finalFormat = isMultiOutput ? 'text' : (blocks[0].format as Format);
+  return json({ result: finalOutput, format: finalFormat });
 }
 
 // ── Format handler ─────────────────────────────────────────────────────────────

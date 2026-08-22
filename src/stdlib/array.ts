@@ -52,7 +52,17 @@ export const ARRAY_FUNCTIONS: Record<string, Value> = {
     const f = asFunc('groupBy', fn);
     const groups: DWObject = {};
     for (const [i, item] of a.entries()) {
-      const key = String(f(item, i));
+      const rawKey = f(item, i);
+      // DataWeave always produces string keys in groupBy output.
+      // null/undefined → "null", objects/arrays → JSON, primitives → String()
+      let key: string;
+      if (rawKey === null || rawKey === undefined) {
+        key = 'null';
+      } else if (typeof rawKey === 'object' || Array.isArray(rawKey)) {
+        key = JSON.stringify(rawKey);
+      } else {
+        key = String(rawKey);
+      }
       if (!groups[key]) groups[key] = [];
       (groups[key] as Value[]).push(item);
     }

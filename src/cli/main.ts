@@ -7,7 +7,7 @@
  */
 
 import { detectFormat, HELP_TEXT, parseArgs, VERSION } from './args.ts';
-import { evaluate } from '../evaluator/evaluator.ts';
+import { evaluate, splitMultiOutputScript } from '../evaluator/evaluator.ts';
 import { parse, serialize } from '../adapters/index.ts';
 import { setProperties } from '../stdlib/index.ts';
 import type { Format } from '../adapters/index.ts';
@@ -125,58 +125,111 @@ async function main(): Promise<void> {
     }
   }
 
-  // ── Extract `output` directive from script header ──────────────────────────
-  let scriptOutFormat: string | null = null;
-  if (expression) {
-    const outputMatch = expression.match(
-      /^output\s+(application|text)\/([\w-]+)/m,
-    );
-    if (outputMatch) {
-      const mime = `${outputMatch[1]}/${outputMatch[2]}`;
-      if (mime.includes('json')) scriptOutFormat = 'json';
-      else if (mime.includes('xml')) scriptOutFormat = 'xml';
-      else if (mime.includes('csv')) scriptOutFormat = 'csv';
-      else if (mime.includes('yaml') || mime.includes('yml')) {
-        scriptOutFormat = 'yaml';
+  // ── Parse output targets ────────────────────────────────────────────────
+  const targetMap = new Map<number, string>();
+  for (const t of args.targets) {
+    const splitIdx = t.indexOf(':');
+    if (splitIdx < 0) {
+      die(`--target must be in <idx>:<file> format, got: "${t}"`);
+    }
+    const idx = parseInt(t.slice(0, splitIdx), 10);
+    if (isNaN(idx) || idx < 1) {
+      die(
+        `--target index must be a positive integer, got: "${
+          t.slice(0, splitIdx)
+        }"`,
+      );
+    }
+    targetMap.set(idx, t.slice(splitIdx + 1));
+  }
+
+  // ── Split script into output blocks (multi-output support) ────────────────
+  const outputBlocks = splitMultiOutputScript(expression!);
+  const isMultiOutput = outputBlocks.length > 1;
+
+  // Use explicit --out flag as override only for single-output scripts
+  const cliOutFmt = args.outFormat as Format;
+
+  const outputs: string[] = [];
+
+  for (const [i, block] of outputBlocks.entries()) {
+    // ── Evaluate DSL block ────────────────────────────────────────────────
+    let result: unknown;
+    try {
+      result = evaluate(block.source, {
+        payload: payload as import('../evaluator/environment.ts').Value,
+        ...(Object.keys(varsObject).length > 0
+          ? { vars: varsObject as import('../evaluator/environment.ts').Value }
+          : {}),
+      });
+    } catch (e) {
+      die(`Evaluation error: ${(e as Error).message}`);
+    }
+
+    // ── Resolve output format ─────────────────────────────────────────────
+    // Multi-output: each block uses its own declared format (--out ignored)
+    // Single-output: --out > script directive > default json
+    let outFmt: Format;
+    if (isMultiOutput) {
+      outFmt = block.format as Format;
+    } else {
+      // Extract `output` directive from script header for single-output
+      let scriptOutFormat: string | null = null;
+      const outputMatch = block.source.match(
+        /^output\s+(application|text)\/([\w-]+)/m,
+      );
+      if (outputMatch) {
+        const mime = `${outputMatch[1]}/${outputMatch[2]}`;
+        if (mime.includes('json')) scriptOutFormat = 'json';
+        else if (mime.includes('xml')) scriptOutFormat = 'xml';
+        else if (mime.includes('csv')) scriptOutFormat = 'csv';
+        else if (mime.includes('yaml') || mime.includes('yml')) {
+          scriptOutFormat = 'yaml';
+        }
       }
+      outFmt = (cliOutFmt !== 'json'
+        ? cliOutFmt
+        : scriptOutFormat ?? cliOutFmt) as Format;
+    }
+
+    // ── Serialize ─────────────────────────────────────────────────────────
+    let serialized: string;
+    try {
+      serialized = serialize(
+        result as import('../evaluator/environment.ts').Value,
+        outFmt,
+        { indent: args.pretty ? args.indent : 0, delimiter: args.delimiter },
+      );
+    } catch (e) {
+      die(
+        `Failed to serialize ${outFmt.toUpperCase()} output: ${
+          (e as Error).message
+        }`,
+      );
+    }
+
+    // ── Route Output ──────────────────────────────────────────────────────
+    const targetFile = targetMap.get(i + 1);
+    if (targetFile) {
+      try {
+        Deno.writeTextFileSync(targetFile, serialized);
+        console.error(`Output ${i + 1} (${outFmt}) written to: ${targetFile}`);
+      } catch (e) {
+        if (e instanceof Deno.errors.PermissionDenied) {
+          die(
+            `Permission denied writing to ${targetFile}. Please run with --allow-write.`,
+          );
+        }
+        die(`Failed writing to ${targetFile}: ${(e as Error).message}`);
+      }
+    } else {
+      outputs.push(serialized);
     }
   }
 
-  // ── Evaluate DSL ────────────────────────────────────────────────────────
-  let result: unknown;
-  try {
-    result = evaluate(expression!, {
-      payload: payload as import('../evaluator/environment.ts').Value,
-      ...(Object.keys(varsObject).length > 0
-        ? { vars: varsObject as import('../evaluator/environment.ts').Value }
-        : {}),
-    });
-  } catch (e) {
-    die(`Evaluation error: ${(e as Error).message}`);
+  if (outputs.length > 0) {
+    console.log(outputs.join('\n\n'));
   }
-
-  // ── Serialize output ───────────────────────────────────────────────────────
-  // Use explicit --out flag > script's output directive > default (json)
-  const outFmt =
-    (args.outFormat !== 'json'
-      ? args.outFormat
-      : scriptOutFormat ?? args.outFormat) as Format;
-  let output: string;
-  try {
-    output = serialize(
-      result as import('../evaluator/environment.ts').Value,
-      outFmt,
-      { indent: args.pretty ? args.indent : 0, delimiter: args.delimiter },
-    );
-  } catch (e) {
-    die(
-      `Failed to serialize ${outFmt.toUpperCase()} output: ${
-        (e as Error).message
-      }`,
-    );
-  }
-
-  console.log(output!);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
