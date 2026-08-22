@@ -1,6 +1,6 @@
 {
   "name": "@denoweave/engine",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "exports": "./src/mod.ts",
   "description": "DenoWeave: a lightweight data transformation engine built in TypeScript + Deno",

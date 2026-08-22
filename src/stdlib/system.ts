@@ -31,12 +31,15 @@ export const SYSTEM_FUNCTIONS: Record<string, Value> = {
     if (Object.prototype.hasOwnProperty.call(_properties, k)) {
       return _properties[k];
     }
-    // Fallback: environment variable
-    try {
-      return Deno.env.get(k) ?? null;
-    } catch {
-      return null;
+    // Fallback: environment variable (if running in Deno/Node with Deno polyfill)
+    if (typeof Deno !== 'undefined' && Deno.env) {
+      try {
+        return Deno.env.get(k) ?? null;
+      } catch {
+        return null;
+      }
     }
+    return null;
   }) as DWFunction,
 
   try: ((lambda: Value): Value => {
@@ -83,13 +86,19 @@ export const SYSTEM_FUNCTIONS: Record<string, Value> = {
     }
 
     let lastErr: unknown;
-    for (const p of pathsToTry) {
-      try {
-        content = Deno.readTextFileSync(p);
-        break;
-      } catch (e) {
-        lastErr = e;
+    if (typeof Deno !== 'undefined' && Deno.readTextFileSync) {
+      for (const p of pathsToTry) {
+        try {
+          content = Deno.readTextFileSync(p);
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
       }
+    } else {
+      lastErr = new Error(
+        'File system access is not available in this environment.',
+      );
     }
 
     if (content === undefined) {

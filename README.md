@@ -1,5 +1,7 @@
 # DenoWeave
 
+[![JSR](https://jsr.io/badges/@denoweave/engine)](https://jsr.io/@denoweave/engine)
+
 > Independent implementation of a DataWeave-compatible runtime for Deno, written
 > from scratch in TypeScript.
 
