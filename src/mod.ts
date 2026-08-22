@@ -1,30 +1,14 @@
 /**
  * DenoWeave Transformation Engine
- * Entry point — Phase 1 demo.
  *
- * Run: deno run src/mod.ts
+ * A lightweight data transformation engine for TypeScript and Deno.
+ * @module
  */
 
-import { Lexer } from './lexer/lexer.ts';
+export { evaluate, splitMultiOutputScript } from './evaluator/evaluator.ts';
 
-const src = `payload.users map ((u) -> {
-  name: upper(u.name),
-  active: u.enabled
-})`;
+export type { Value } from './evaluator/environment.ts';
 
-console.log('=== DenoWeave Engine — Lexer Demo ===\n');
-console.log('Source:\n', src, '\n');
+export { parse, serialize } from './adapters/index.ts';
 
-const tokens = new Lexer(src).tokenize();
-
-console.log('Tokens:');
-for (const tok of tokens) {
-  if (tok.type !== 'EOF') {
-    console.log(
-      `  [${String(tok.line).padStart(2)}:${String(tok.column).padStart(2)}]  ${
-        tok.type.padEnd(14)
-      } "${tok.value}"`,
-    );
-  }
-}
-console.log('\n✓ Lexer phase complete.');
+export type { Format } from './adapters/index.ts';
